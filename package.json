@@ -1,0 +1,17 @@
+{
+  "name": "quran-mp3-bot",
+  "version": "1.0.0",
+  "description": "Telegram Bot for Quran MP3",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.28.4"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

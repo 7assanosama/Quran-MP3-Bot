@@ -1,10 +1,17 @@
 import { STRINGS } from "./strings.js";
+import { Redis } from "@upstash/redis";
 
 export class QuranBot {
   constructor(env) {
     this.env = env;
     this.token = env.TELEGRAM_BOT_TOKEN;
     this.api = `https://api.telegram.org/bot${this.token}`;
+
+    // Initialize Upstash Redis client
+    this.redis = new Redis({
+      url: env.UPSTASH_REDIS_REST_URL,
+      token: env.UPSTASH_REDIS_REST_TOKEN,
+    });
   }
 
   async handleUpdate(message) {
@@ -73,7 +80,7 @@ export class QuranBot {
 
   async getLang(chatId) {
     try {
-      return (await this.env.REDIS.get(`user:${chatId}:lang`)) || "ar";
+      return (await this.redis.get(`user:${chatId}:lang`)) || "ar";
     } catch (e) {
       console.error("Redis Error (getLang):", e);
       return "ar";
@@ -82,7 +89,7 @@ export class QuranBot {
 
   async setLang(chatId, lang) {
     try {
-      await this.env.REDIS.set(`user:${chatId}:lang`, lang);
+      await this.redis.set(`user:${chatId}:lang`, lang);
     } catch (e) {
       console.error("Redis Error (setLang):", e);
     }
