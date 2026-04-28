@@ -1,6 +1,6 @@
 export class QuranAPI {
   constructor(redis) {
-    this.baseUrl = "https://mp3quran.net/api/v3";
+    this.baseUrl = "https://mp3quran.net/api";
     this.redis = redis;
     this.cacheTTL = 3600 * 24; // 24 hours
   }
@@ -40,7 +40,7 @@ export class QuranAPI {
     const cached = await this.redis.get(cacheKey);
     if (cached) return cached;
 
-    const response = await fetch(`${this.baseUrl}/radios?language=${lang}`);
+    const response = await fetch(`${this.baseUrl}/radio-v2/radio_${lang}.json`);
     const data = await response.json();
 
     if (data && data.radios) {

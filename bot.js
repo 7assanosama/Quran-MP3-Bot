@@ -38,6 +38,10 @@ export class QuranBot {
       return this.sendResponse(chatId, "ar", "lang_set");
     }
 
+    if (text === BUTTONS.radios[lang]) {
+      await this.sendResponse(chatId, lang, this.quran.getRadios(lang));
+    }
+
     // Default response for known commands or main menu
     if (text === "/start") {
       return this.sendResponse(chatId, lang, "welcome");
