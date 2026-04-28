@@ -17,6 +17,10 @@ export class QuranBot {
   async handleUpdate(message) {
     const chatId = message.chat.id;
     const text = message.text?.trim();
+
+    // Show "typing..." status
+    await this.sendAction(chatId, "typing");
+
     const lang = await this.getLang(chatId);
 
     // Handle language switching
@@ -41,6 +45,18 @@ export class QuranBot {
     }
 
     return this.sendResponse(chatId, lang, "welcome");
+  }
+
+  async sendAction(chatId, action = "typing") {
+    const url = `${this.api}/sendChatAction`;
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        action: action,
+      }),
+    }).catch((e) => console.error("Error sending action:", e));
   }
 
   async sendResponse(chatId, lang, stringKey) {
