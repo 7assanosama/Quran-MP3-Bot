@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.wrangler/
+package-lock.json
+npm-debug.log
+yarn-error.log
+.DS_Store
