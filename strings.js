@@ -5,6 +5,9 @@ export const STRINGS = {
     unknown: "عذراً، لم أفهم هذا الأمر. يرجى الاختيار من القائمة.",
     buttons: {
       lang: "English 🌐",
+      reciters: "🎙️ القراء",
+      suwar: "📖 السور",
+      radios: "📻 الإذاعات",
     },
   },
   en: {
@@ -13,6 +16,9 @@ export const STRINGS = {
     unknown: "Sorry, I didn't understand that. Please choose from the menu.",
     buttons: {
       lang: "العربية 🌐",
+      reciters: "🎙️ Reciters",
+      suwar: "📖 Chapters (Suwar)",
+      radios: "📻 Radio Stations",
     },
   },
 };

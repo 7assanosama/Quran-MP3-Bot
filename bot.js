@@ -1,5 +1,6 @@
 import { STRINGS } from "./strings.js";
 import { Redis } from "@upstash/redis";
+import { QuranAPI } from "./quranApi.js";
 
 export class QuranBot {
   constructor(env) {
@@ -12,6 +13,9 @@ export class QuranBot {
       url: env.UPSTASH_REDIS_REST_URL,
       token: env.UPSTASH_REDIS_REST_TOKEN,
     });
+
+    // Initialize Quran API controller
+    this.quran = new QuranAPI(this.redis);
   }
 
   async handleUpdate(message) {
@@ -67,8 +71,12 @@ export class QuranBot {
   }
 
   getMainMenu(lang) {
+    const btn = STRINGS[lang].buttons;
     return {
-      keyboard: [[{ text: STRINGS[lang].buttons.lang }]],
+      keyboard: [
+        [{ text: btn.reciters }, { text: btn.suwar }],
+        [{ text: btn.radios }, { text: btn.lang }],
+      ],
       resize_keyboard: true,
     };
   }
