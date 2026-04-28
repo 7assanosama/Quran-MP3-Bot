@@ -1,4 +1,4 @@
-import { STRINGS } from "./strings.js";
+import { STRINGS, BUTTONS } from "./strings.js";
 import { Redis } from "@upstash/redis";
 import { QuranAPI } from "./quranApi.js";
 
@@ -71,11 +71,13 @@ export class QuranBot {
   }
 
   getMainMenu(lang) {
-    const btn = STRINGS[lang].buttons;
     return {
       keyboard: [
-        [{ text: btn.reciters }, { text: btn.suwar }],
-        [{ text: btn.radios }, { text: btn.lang }],
+        [
+          { text: BUTTONS.read_quran[lang] },
+          { text: BUTTONS.listen_quran[lang] },
+        ],
+        [{ text: BUTTONS.radios[lang] }, { text: BUTTONS.lang[lang] }],
       ],
       resize_keyboard: true,
     };
