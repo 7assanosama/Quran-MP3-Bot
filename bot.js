@@ -74,10 +74,10 @@ export class QuranBot {
     return {
       keyboard: [
         [
-          { text: BUTTONS.read_quran[lang] },
           { text: BUTTONS.listen_quran[lang] },
+          { text: BUTTONS.read_quran[lang] },
         ],
-        [{ text: BUTTONS.radios[lang] }, { text: BUTTONS.lang[lang] }],
+        [{ text: BUTTONS.lang[lang] }, { text: BUTTONS.radios[lang] }],
       ],
       resize_keyboard: true,
     };
