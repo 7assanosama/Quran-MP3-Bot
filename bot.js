@@ -119,11 +119,10 @@ export class QuranBot {
   }
 
   async showReciters(chatId, lang, messageId = null, intent = "listen") {
-    const reciters = await this.quran.getReciters(lang);
-    const topReciters = reciters.slice(0, 20);
+    const reciters = await this.quran.getReciters(lang); 
 
     const icon = intent === "download" ? "📥" : "🎧";
-    const keyboard = topReciters.map((r) => [
+    const keyboard = reciters.map((r) => [
       { text: `${icon} ${r.name}`, callback_data: `reciter:${intent}:${r.id}` },
     ]);
 
