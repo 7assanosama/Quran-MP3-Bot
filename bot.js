@@ -47,11 +47,15 @@ export class QuranBot {
     }
 
     if (text === BUTTONS.read_quran[lang]) {
-      return this.sendMessage(chatId, STRINGS[lang].read_text);
+      return this.showQuranPage(chatId, lang, 1);
     }
 
     if (text === BUTTONS.radios[lang]) {
       return this.showRadios(chatId, lang);
+    }
+
+    if (text === BUTTONS.today_hadith[lang]) {
+      return this.showTodayHadith(chatId, lang);
     }
 
     return this.sendResponse(chatId, lang, "unknown");
@@ -78,6 +82,11 @@ export class QuranBot {
 
     if (data === "show_reciters") {
       return this.showReciters(chatId, lang, messageId);
+    }
+
+    if (data.startsWith("page:")) {
+      const pageNum = parseInt(data.split(":")[1]);
+      return this.showQuranPage(chatId, lang, pageNum, messageId);
     }
 
     if (data === "main_menu") {
@@ -130,6 +139,48 @@ export class QuranBot {
     });
   }
 
+  async showQuranPage(chatId, lang, pageNum, messageId = null) {
+    if (pageNum < 1) pageNum = 1;
+    if (pageNum > 604) pageNum = 604;
+
+    const imageUrl = await this.quran.getPage(pageNum);
+    const keyboard = [[]];
+
+    if (pageNum > 1) {
+      keyboard[0].push({ text: BUTTONS.prev_page[lang], callback_data: `page:${pageNum - 1}` });
+    }
+    if (pageNum < 604) {
+      keyboard[0].push({ text: BUTTONS.next_page[lang], callback_data: `page:${pageNum + 1}` });
+    }
+
+    const caption = `📖 <b>${STRINGS[lang].page} ${pageNum}</b>`;
+    const extra = { reply_markup: { inline_keyboard: keyboard }, parse_mode: "HTML" };
+
+    if (messageId) {
+      // Telegram editMessageText doesn't support changing media, 
+      // but we can use editMessageMedia or just send a new one.
+      // editMessageMedia is better for UX.
+      return this.callTelegram("editMessageMedia", {
+        chat_id: chatId,
+        message_id: messageId,
+        media: {
+          type: "photo",
+          media: imageUrl,
+          caption: caption,
+          parse_mode: "HTML"
+        },
+        ...extra
+      });
+    }
+
+    return this.callTelegram("sendPhoto", {
+      chat_id: chatId,
+      photo: imageUrl,
+      caption: caption,
+      ...extra
+    });
+  }
+
   async showRadios(chatId, lang) {
     const radios = await this.quran.getRadios(lang);
     const topRadios = radios.slice(0, 15);
@@ -141,6 +192,26 @@ export class QuranBot {
     return this.sendMessage(chatId, STRINGS[lang].choose_radio, {
       reply_markup: { inline_keyboard: keyboard },
     });
+  }
+
+  async showTodayHadith(chatId, lang) {
+    const hadiths = await this.quran.getTodayHadith();
+    if (!hadiths || hadiths.length === 0) {
+      return this.sendResponse(chatId, lang, "error");
+    }
+
+    // Pick a hadith based on today's date
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now - start;
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
+    
+    const index = dayOfYear % hadiths.length;
+    const hadith = hadiths[index].hadith;
+
+    const text = `${STRINGS[lang].today_hadith_title}\n\n${hadith}`;
+    return this.sendMessage(chatId, text);
   }
 
   async sendAudio(chatId, lang, reciterId, surahId) {
@@ -186,7 +257,8 @@ export class QuranBot {
     return {
       keyboard: [
         [{ text: BUTTONS.listen_quran[lang] }, { text: BUTTONS.read_quran[lang] }],
-        [{ text: BUTTONS.lang[lang] }, { text: BUTTONS.radios[lang] }],
+        [{ text: BUTTONS.radios[lang] }, { text: BUTTONS.today_hadith[lang] }],
+        [{ text: BUTTONS.lang[lang] }],
       ],
       resize_keyboard: true,
     };

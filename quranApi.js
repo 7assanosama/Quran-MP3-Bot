@@ -1,8 +1,13 @@
 export class QuranAPI {
   constructor(redis) {
-    this.baseUrl = "https://mp3quran.net/api/v3";
+    this.baseUrl = "https://mp3quran.net/api/";
     this.redis = redis;
     this.cacheTTL = 3600 * 24; // 24 hours
+  }
+
+  async getPage(pageNumber) {
+    const formattedPage = pageNumber.toString().padStart(3, "0");
+    return `https://www.mp3quran.net/api/quran_pages_arabic/1080/${formattedPage}.png`;
   }
 
   async getReciters(lang = "ar") {
@@ -50,7 +55,9 @@ export class QuranAPI {
 
     try {
       // Radios V2 is still widely used and works with V3
-      const response = await fetch(`https://mp3quran.net/api/radio-v2/radio_${lang}.json`);
+      const response = await fetch(
+        `https://mp3quran.net/api/radio-v2/radio_${lang}.json`,
+      );
       const data = await response.json();
 
       if (data && data.radios) {
@@ -62,5 +69,23 @@ export class QuranAPI {
     }
     return [];
   }
-}
 
+  async getTodayHadith() {
+    const cacheKey = "cache:today_hadith";
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await fetch("https://www.mp3quran.net/api/today-hadith.php");
+      const data = await response.json();
+
+      if (data && data.language) {
+        await this.redis.set(cacheKey, data.language, { ex: this.cacheTTL });
+        return data.language;
+      }
+    } catch (e) {
+      console.error("API Error (getTodayHadith):", e);
+    }
+    return [];
+  }
+}

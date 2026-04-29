@@ -18,6 +18,18 @@ export const BUTTONS = {
   back: {
     ar: "🔙 رجوع",
     en: "🔙 Back",
+  },
+  today_hadith: {
+    ar: "📜 حديث اليوم",
+    en: "📜 Hadith of the Day",
+  },
+  next_page: {
+    ar: "⬅️ الصفحة التالية",
+    en: "Next Page ➡️",
+  },
+  prev_page: {
+    ar: "➡️ الصفحة السابقة",
+    en: "⬅️ Previous Page",
   }
 };
 
@@ -33,6 +45,8 @@ export const STRINGS = {
     error: "❌ حدث خطأ، يرجى المحاولة لاحقاً.",
     read_text: "📖 <b>يمكنك قراءة القرآن الكريم عبر الرابط التالي:</b>\n\nhttps://quran.com",
     playing: "🎵 <b>جاري تشغيل:</b> {name}\n👤 <b>القاريء:</b> {reciter}",
+    today_hadith_title: "📜 <b>حديث اليوم:</b>",
+    page: "صفحة",
   },
   en: {
     welcome: "👋 <b>Welcome to the Holy Quran Bot</b>\n\nA free service to listen to and download Quran recitations by famous reciters.\n\nChoose from the menu below:",
@@ -45,6 +59,8 @@ export const STRINGS = {
     error: "❌ An error occurred, please try again later.",
     read_text: "📖 <b>You can read the Holy Quran via the following link:</b>\n\nhttps://quran.com",
     playing: "🎵 <b>Now playing:</b> {name}\n👤 <b>Reciter:</b> {reciter}",
+    today_hadith_title: "📜 <b>Hadith of the Day:</b>",
+    page: "Page",
   },
 };
 
