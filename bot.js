@@ -76,9 +76,9 @@ export class QuranBot {
       const data = query.data;
       const lang = await this.getLang(chatId);
 
-    // Answer callback to remove loading state
-    await this.answerCallback(query.id);
-    await this.sendAction(chatId, "typing");
+      // Answer callback to remove loading state (non-blocking)
+      this.answerCallback(query.id).catch(() => {});
+      await this.sendAction(chatId, "typing");
 
     if (data.startsWith("lang:")) {
       const newLang = data.split(":")[1];
