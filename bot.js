@@ -58,6 +58,14 @@ export class QuranBot {
       return this.showTodayHadith(chatId, lang);
     }
 
+    // Quick page navigation (detect numbers 1-604)
+    if (/^\d+$/.test(text)) {
+      const pageNum = parseInt(text);
+      if (pageNum >= 1 && pageNum <= 604) {
+        return this.showQuranPage(chatId, lang, pageNum);
+      }
+    }
+
     return this.sendResponse(chatId, lang, "unknown");
   }
 
@@ -87,6 +95,10 @@ export class QuranBot {
     if (data.startsWith("page:")) {
       const pageNum = parseInt(data.split(":")[1]);
       return this.showQuranPage(chatId, lang, pageNum, messageId);
+    }
+
+    if (data === "goto_page") {
+      return this.sendMessage(chatId, STRINGS[lang].enter_page);
     }
 
     if (data === "main_menu") {
@@ -152,6 +164,9 @@ export class QuranBot {
     if (pageNum < 604) {
       keyboard[0].push({ text: BUTTONS.next_page[lang], callback_data: `page:${pageNum + 1}` });
     }
+    
+    // Add Go to Page button in a new row
+    keyboard.push([{ text: BUTTONS.goto_page[lang], callback_data: "goto_page" }]);
 
     const caption = `📖 <b>${STRINGS[lang].page} ${pageNum}</b>`;
     const extra = { reply_markup: { inline_keyboard: keyboard }, parse_mode: "HTML" };

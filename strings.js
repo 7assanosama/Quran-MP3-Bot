@@ -30,6 +30,10 @@ export const BUTTONS = {
   prev_page: {
     ar: "➡️ الصفحة السابقة",
     en: "⬅️ Previous Page",
+  },
+  goto_page: {
+    ar: "🔢 الذهاب لصفحة",
+    en: "🔢 Go to Page",
   }
 };
 
@@ -47,6 +51,7 @@ export const STRINGS = {
     playing: "🎵 <b>جاري تشغيل:</b> {name}\n👤 <b>القاريء:</b> {reciter}",
     today_hadith_title: "📜 <b>حديث اليوم:</b>",
     page: "صفحة",
+    enter_page: "🔢 <b>أرسل رقم الصفحة للانتقال إليها مباشرة (1-604):</b>",
   },
   en: {
     welcome: "👋 <b>Welcome to the Holy Quran Bot</b>\n\nA free service to listen to and download Quran recitations by famous reciters.\n\nChoose from the menu below:",
@@ -61,6 +66,7 @@ export const STRINGS = {
     playing: "🎵 <b>Now playing:</b> {name}\n👤 <b>Reciter:</b> {reciter}",
     today_hadith_title: "📜 <b>Hadith of the Day:</b>",
     page: "Page",
+    enter_page: "🔢 <b>Send a page number to go to it directly (1-604):</b>",
   },
 };
 
