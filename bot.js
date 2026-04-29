@@ -31,7 +31,7 @@ export class QuranBot {
     const lang = await this.getLang(chatId);
 
     // Language handling
-    if (text === BUTTONS.lang[lang] || text === "en" || text === "ar") {
+    if (text === BUTTONS.lang[lang]) {
       const newLang = lang === "ar" ? "en" : "ar";
       await this.setLang(chatId, newLang);
       return this.sendResponse(chatId, newLang, "lang_set");
@@ -79,6 +79,12 @@ export class QuranBot {
     // Answer callback to remove loading state
     await this.answerCallback(query.id);
     await this.sendAction(chatId, "typing");
+
+    if (data.startsWith("lang:")) {
+      const newLang = data.split(":")[1];
+      await this.setLang(chatId, newLang);
+      return this.sendResponse(chatId, newLang, "welcome");
+    }
 
     if (data.startsWith("reciter:")) {
       const parts = data.split(":");
@@ -507,27 +513,30 @@ export class QuranBot {
     });
   }
 
-  async callTelegram(method, body) {
-    const url = `${this.api}/${method}`;
+  async callTelegram(method, params) {
+    const url = `https://api.telegram.org/bot${this.token}/${method}`;
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(params),
     });
-    return response.json();
+    const result = await response.json();
+    if (!result.ok) {
+      console.error(`Telegram API Error (${method}):`, result);
+      throw new Error(`Telegram API Error: ${result.description}`);
+    }
+    return result;
   }
 
   async getLang(chatId) {
     try {
-      return (await this.redis.get(`user:${chatId}:lang`)) || "ar";
+      return (await this.redis.get(`lang:${chatId}`)) || "ar";
     } catch (e) {
       return "ar";
     }
   }
 
   async setLang(chatId, lang) {
-    try {
-      await this.redis.set(`user:${chatId}:lang`, lang);
-    } catch (e) {}
+    return this.redis.set(`lang:${chatId}`, lang);
   }
 }
