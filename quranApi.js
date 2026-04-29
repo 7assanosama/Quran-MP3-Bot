@@ -11,21 +11,23 @@ export class QuranAPI {
   }
 
   async getReciters(lang = "ar", reciterId = null) {
-    const cacheKey = reciterId ? `cache:reciter:${reciterId}:${lang}` : `cache:reciters:${lang}`;
+    const cacheKey = reciterId
+      ? `cache:reciter:${reciterId}:${lang}`
+      : `cache:reciters:${lang}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return cached;
 
     try {
       let url = `${this.baseUrl}/reciters?language=${lang}`;
       if (reciterId) url += `&reciter=${reciterId}`;
-      
+
       const response = await fetch(url);
       const data = await response.json();
 
       if (data && data.reciters) {
         // Sort reciters alphabetically by name
         data.reciters.sort((a, b) => a.name.localeCompare(b.name, lang));
-        
+
         await this.redis.set(cacheKey, data.reciters, { ex: this.cacheTTL });
         return data.reciters;
       }
@@ -82,7 +84,9 @@ export class QuranAPI {
     if (cached) return cached;
 
     try {
-      const response = await fetch("https://www.mp3quran.net/api/today-hadith.php");
+      const response = await fetch(
+        "https://www.mp3quran.net/api/today-hadith.php",
+      );
       const data = await response.json();
 
       if (data && data.language) {

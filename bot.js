@@ -80,85 +80,99 @@ export class QuranBot {
       this.answerCallback(query.id).catch(() => {});
       await this.sendAction(chatId, "typing");
 
-    if (data.startsWith("lang:")) {
-      const newLang = data.split(":")[1];
-      await this.setLang(chatId, newLang);
-      return this.sendResponse(chatId, newLang, "welcome");
-    }
-
-    if (data.startsWith("reciter:")) {
-      const parts = data.split(":");
-      // Handle new format: reciter:intent:reciterId:page
-      // Handle old format: reciter:intent:reciterId
-      // Handle very old format: reciter:reciterId
-      if (parts.length === 4) {
-        const [, intent, reciterId, page] = parts;
-        return this.showSuwar(chatId, lang, reciterId, messageId, intent, parseInt(page || "0"));
-      } else if (parts.length === 3) {
-        const [, intent, reciterId] = parts;
-        return this.showSuwar(chatId, lang, reciterId, messageId, intent, 0);
-      } else if (parts.length === 2) {
-        const [, reciterId] = parts;
-        return this.showSuwar(chatId, lang, reciterId, messageId, "listen", 0);
+      if (data.startsWith("lang:")) {
+        const newLang = data.split(":")[1];
+        await this.setLang(chatId, newLang);
+        return this.sendResponse(chatId, newLang, "welcome");
       }
-    }
 
-    if (data.startsWith("surah:")) {
-      const parts = data.split(":");
-      // Handle new format: surah:intent:reciterId:surahId:mIndex
-      // Handle old format: surah:intent:reciterId:surahId
-      // Handle very old format: surah:reciterId:surahId
-      if (parts.length === 5) {
-        const [, intent, reciterId, surahId, mIndex] = parts;
-        return this.sendAudio(chatId, lang, reciterId, surahId, mIndex || 0);
-      } else if (parts.length === 4) {
-        const [, intent, reciterId, surahId] = parts;
-        return this.sendAudio(chatId, lang, reciterId, surahId, 0);
-      } else if (parts.length === 3) {
-        const [, reciterId, surahId] = parts;
-        return this.sendAudio(chatId, lang, reciterId, surahId, 0);
+      if (data.startsWith("reciter:")) {
+        const parts = data.split(":");
+        // Handle new format: reciter:intent:reciterId:page
+        // Handle old format: reciter:intent:reciterId
+        // Handle very old format: reciter:reciterId
+        if (parts.length === 4) {
+          const [, intent, reciterId, page] = parts;
+          return this.showSuwar(
+            chatId,
+            lang,
+            reciterId,
+            messageId,
+            intent,
+            parseInt(page || "0"),
+          );
+        } else if (parts.length === 3) {
+          const [, intent, reciterId] = parts;
+          return this.showSuwar(chatId, lang, reciterId, messageId, intent, 0);
+        } else if (parts.length === 2) {
+          const [, reciterId] = parts;
+          return this.showSuwar(
+            chatId,
+            lang,
+            reciterId,
+            messageId,
+            "listen",
+            0,
+          );
+        }
       }
-    }
 
-    if (data.startsWith("show_reciters:")) {
-      const parts = data.split(":");
-      const intent = parts[1];
-      const page = parseInt(parts[2] || "0");
-      return this.showReciters(chatId, lang, messageId, intent, page);
-    }
-
-    if (data.startsWith("show_radios:")) {
-      const page = parseInt(data.split(":")[1] || "0");
-      return this.showRadios(chatId, lang, messageId, page);
-    }
-
-    if (data.startsWith("page:")) {
-      const pageNum = parseInt(data.split(":")[1]);
-      return this.showQuranPage(chatId, lang, pageNum, messageId);
-    }
-
-    if (data.startsWith("read_surah:")) {
-      const surahId = data.split(":")[1];
-      const suwar = await this.quran.getSuwar(lang);
-      const surah = suwar.find((s) => s.id == surahId);
-      if (surah) {
-        return this.showQuranPage(chatId, lang, surah.start_page);
+      if (data.startsWith("surah:")) {
+        const parts = data.split(":");
+        // Handle new format: surah:intent:reciterId:surahId:mIndex
+        // Handle old format: surah:intent:reciterId:surahId
+        // Handle very old format: surah:reciterId:surahId
+        if (parts.length === 5) {
+          const [, intent, reciterId, surahId, mIndex] = parts;
+          return this.sendMedia(chatId, lang, reciterId, surahId, mIndex || 0, intent);
+        } else if (parts.length === 4) {
+          const [, intent, reciterId, surahId] = parts;
+          return this.sendMedia(chatId, lang, reciterId, surahId, 0, intent);
+        } else if (parts.length === 3) {
+          const [, reciterId, surahId] = parts;
+          return this.sendMedia(chatId, lang, reciterId, surahId, 0, "listen");
+        }
       }
-    }
 
-    if (data.startsWith("show_read_suwar:")) {
-      const page = parseInt(data.split(":")[1] || "0");
-      return this.showReadSuwar(chatId, lang, messageId, page);
-    }
+      if (data.startsWith("show_reciters:")) {
+        const parts = data.split(":");
+        const intent = parts[1];
+        const page = parseInt(parts[2] || "0");
+        return this.showReciters(chatId, lang, messageId, intent, page);
+      }
 
-    if (data.startsWith("dl_file:")) {
-      const [, reciterId, surahId] = data.split(":");
-      return this.sendAudio(chatId, lang, reciterId, surahId);
-    }
+      if (data.startsWith("show_radios:")) {
+        const page = parseInt(data.split(":")[1] || "0");
+        return this.showRadios(chatId, lang, messageId, page);
+      }
 
-    if (data === "goto_page") {
-      return this.sendMessage(chatId, STRINGS[lang].enter_page);
-    }
+      if (data.startsWith("page:")) {
+        const pageNum = parseInt(data.split(":")[1]);
+        return this.showQuranPage(chatId, lang, pageNum, messageId);
+      }
+
+      if (data.startsWith("read_surah:")) {
+        const surahId = data.split(":")[1];
+        const suwar = await this.quran.getSuwar(lang);
+        const surah = suwar.find((s) => s.id == surahId);
+        if (surah) {
+          return this.showQuranPage(chatId, lang, surah.start_page);
+        }
+      }
+
+      if (data.startsWith("show_read_suwar:")) {
+        const page = parseInt(data.split(":")[1] || "0");
+        return this.showReadSuwar(chatId, lang, messageId, page);
+      }
+
+      if (data.startsWith("dl_file:")) {
+        const [, reciterId, surahId] = data.split(":");
+        return this.sendAudio(chatId, lang, reciterId, surahId);
+      }
+
+      if (data === "goto_page") {
+        return this.sendMessage(chatId, STRINGS[lang].enter_page);
+      }
 
       if (data === "main_menu") {
         const text = STRINGS[lang].welcome;
@@ -168,11 +182,20 @@ export class QuranBot {
       }
     } catch (e) {
       console.error("Callback Error:", e);
-      return this.sendMessage(query.message.chat.id, `❌ Bot Error: ${e.message}`);
+      return this.sendMessage(
+        query.message.chat.id,
+        `❌ Bot Error: ${e.message}`,
+      );
     }
   }
 
-  async showReciters(chatId, lang, messageId = null, intent = "listen", page = 0) {
+  async showReciters(
+    chatId,
+    lang,
+    messageId = null,
+    intent = "listen",
+    page = 0,
+  ) {
     const reciters = await this.quran.getReciters(lang);
     const pageSize = 50;
     const start = page * pageSize;
@@ -187,10 +210,16 @@ export class QuranBot {
     // Pagination buttons
     const navButtons = [];
     if (page > 0) {
-      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `show_reciters:${intent}:${page - 1}` });
+      navButtons.push({
+        text: BUTTONS.prev_list[lang],
+        callback_data: `show_reciters:${intent}:${page - 1}`,
+      });
     }
     if (end < reciters.length) {
-      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `show_reciters:${intent}:${page + 1}` });
+      navButtons.push({
+        text: BUTTONS.next_list[lang],
+        callback_data: `show_reciters:${intent}:${page + 1}`,
+      });
     }
     if (navButtons.length > 0) {
       keyboard.push(navButtons);
@@ -205,16 +234,29 @@ export class QuranBot {
     return this.sendMessage(chatId, text, extra);
   }
 
-  async showSuwar(chatId, lang, reciterId, messageId, intent = "listen", page = 0) {
+  async showSuwar(
+    chatId,
+    lang,
+    reciterId,
+    messageId,
+    intent = "listen",
+    page = 0,
+  ) {
     const suwar = await this.quran.getSuwar(lang);
     const reciters = await this.quran.getReciters(lang, reciterId);
     const reciter = reciters[0];
 
     if (!reciter) {
-      return this.sendMessage(chatId, `❌ Error: Reciter ID ${reciterId} not found.`);
+      return this.sendMessage(
+        chatId,
+        `❌ Error: Reciter ID ${reciterId} not found.`,
+      );
     }
     if (!reciter.moshaf) {
-      return this.sendMessage(chatId, `❌ Error: No moshaf data found for reciter ${reciter.name}.`);
+      return this.sendMessage(
+        chatId,
+        `❌ Error: No moshaf data found for reciter ${reciter.name}.`,
+      );
     }
 
     const icon = intent === "download" ? "📥" : "🎧";
@@ -231,7 +273,9 @@ export class QuranBot {
       });
     });
 
-    const availableSuwar = suwar.filter((s) => surahToMoshaf.has(s.id.toString()));
+    const availableSuwar = suwar.filter((s) =>
+      surahToMoshaf.has(s.id.toString()),
+    );
 
     // Pagination for suwar
     const pageSize = 60; // 20 rows of 3
@@ -256,10 +300,16 @@ export class QuranBot {
     // Pagination buttons
     const navButtons = [];
     if (page > 0) {
-      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `reciter:${intent}:${reciterId}:${page - 1}` });
+      navButtons.push({
+        text: BUTTONS.prev_list[lang],
+        callback_data: `reciter:${intent}:${reciterId}:${page - 1}`,
+      });
     }
     if (end < availableSuwar.length) {
-      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `reciter:${intent}:${reciterId}:${page + 1}` });
+      navButtons.push({
+        text: BUTTONS.next_list[lang],
+        callback_data: `reciter:${intent}:${reciterId}:${page + 1}`,
+      });
     }
     if (navButtons.length > 0) {
       keyboard.push(navButtons);
@@ -296,10 +346,16 @@ export class QuranBot {
     // Pagination buttons
     const navButtons = [];
     if (page > 0) {
-      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `show_read_suwar:${page - 1}` });
+      navButtons.push({
+        text: BUTTONS.prev_list[lang],
+        callback_data: `show_read_suwar:${page - 1}`,
+      });
     }
     if (end < suwar.length) {
-      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `show_read_suwar:${page + 1}` });
+      navButtons.push({
+        text: BUTTONS.next_list[lang],
+        callback_data: `show_read_suwar:${page + 1}`,
+      });
     }
     if (navButtons.length > 0) {
       keyboard.push(navButtons);
@@ -382,10 +438,16 @@ export class QuranBot {
     // Pagination buttons
     const navButtons = [];
     if (page > 0) {
-      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `show_radios:${page - 1}` });
+      navButtons.push({
+        text: BUTTONS.prev_list[lang],
+        callback_data: `show_radios:${page - 1}`,
+      });
     }
     if (end < radios.length) {
-      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `show_radios:${page + 1}` });
+      navButtons.push({
+        text: BUTTONS.next_list[lang],
+        callback_data: `show_radios:${page + 1}`,
+      });
     }
     if (navButtons.length > 0) {
       keyboard.push(navButtons);
@@ -422,23 +484,32 @@ export class QuranBot {
     return this.sendMessage(chatId, text);
   }
 
-  async sendAudio(chatId, lang, reciterId, surahId, mIndex = 0) {
+  async sendMedia(chatId, lang, reciterId, surahId, mIndex = 0, intent = "listen") {
     const reciters = await this.quran.getReciters(lang, reciterId);
     const suwar = await this.quran.getSuwar(lang);
     const reciter = reciters[0]; // Since we filtered by ID
     const surah = suwar.find((s) => s.id == surahId);
 
     if (!reciter) {
-      return this.sendMessage(chatId, `❌ Error: Reciter ID ${reciterId} not found.`);
+      return this.sendMessage(
+        chatId,
+        `❌ Error: Reciter ID ${reciterId} not found.`,
+      );
     }
     if (!suwar || suwar.length === 0) {
       return this.sendMessage(chatId, `❌ Error: Could not load surah list.`);
     }
     if (!surah) {
-      return this.sendMessage(chatId, `❌ Error: Surah ID ${surahId} not found.`);
+      return this.sendMessage(
+        chatId,
+        `❌ Error: Surah ID ${surahId} not found.`,
+      );
     }
     if (!reciter.moshaf || !reciter.moshaf[mIndex]) {
-      return this.sendMessage(chatId, `❌ Error: Collection index ${mIndex} not found for ${reciter.name}.`);
+      return this.sendMessage(
+        chatId,
+        `❌ Error: Collection index ${mIndex} not found for ${reciter.name}.`,
+      );
     }
 
     const server = reciter.moshaf[mIndex].server;
@@ -449,18 +520,31 @@ export class QuranBot {
       .replace("{reciter}", reciter.name);
 
     const keyboard = [
-      [{ text: BUTTONS.read_surah[lang], callback_data: `page:${surah.start_page}` }],
+      [
+        {
+          text: BUTTONS.read_surah[lang],
+          callback_data: `page:${surah.start_page}`,
+        },
+      ],
     ];
 
-    return this.callTelegram("sendAudio", {
+    const method = intent === "download" ? "sendDocument" : "sendAudio";
+    const mediaParam = intent === "download" ? "document" : "audio";
+
+    const params = {
       chat_id: chatId,
-      audio: audioUrl,
+      [mediaParam]: audioUrl,
       caption: text,
       parse_mode: "HTML",
-      title: surah.name,
-      performer: reciter.name,
       reply_markup: { inline_keyboard: keyboard },
-    });
+    };
+
+    if (intent !== "download") {
+      params.title = surah.name;
+      params.performer = reciter.name;
+    }
+
+    return this.callTelegram(method, params);
   }
 
   // Helper Methods
