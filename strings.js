@@ -4,13 +4,13 @@ export const BUTTONS = {
     en: "العربية 🌐",
   },
   read_quran: {
-    ar: "📖 قراءة القرآن الكريم",
-    en: "📖 Read the Holy Quran",
+    ar: "📖 قراءة",
+    en: "📖 Read",
   },
   listen_quran: {
     ar: "🎧 استماع",
     en: "🎧 Listen",
-  }, 
+  },
   radios: {
     ar: "📻 الإذاعات",
     en: "📻 Radio Stations",
@@ -34,12 +34,13 @@ export const BUTTONS = {
   goto_page: {
     ar: "🔢 الذهاب لصفحة",
     en: "🔢 Go to Page",
-  }
+  },
 };
 
 export const STRINGS = {
   ar: {
-    welcome: "👋 <b>أهلاً بك في بوت القرآن الكريم</b>\n\nخدمة مجانية للاستماع وتحميل تلاوات القرآن الكريم بأصوات أشهر القراء.\n\nاختر من القائمة أدناه:",
+    welcome:
+      "👋 <b>أهلاً بك في بوت القرآن الكريم</b>\n\nخدمة مجانية للاستماع وتحميل تلاوات القرآن الكريم بأصوات أشهر القراء.\n\nاختر من القائمة أدناه:",
     lang_set: "✅ تم اختيار اللغة العربية",
     unknown: "عذراً، لم أفهم هذا الأمر. يرجى الاختيار من القائمة.",
     choose_reciter: "🎙️ <b>اختر القاريء الذي تود الاستماع إليه:</b>",
@@ -47,7 +48,8 @@ export const STRINGS = {
     choose_radio: "📻 <b>اختر إذاعة القرآن الكريم:</b>",
     loading: "⏳ جاري التحميل...",
     error: "❌ حدث خطأ، يرجى المحاولة لاحقاً.",
-    read_text: "📖 <b>يمكنك قراءة القرآن الكريم عبر الرابط التالي:</b>\n\nhttps://quran.com",
+    read_text:
+      "📖 <b>يمكنك قراءة القرآن الكريم عبر الرابط التالي:</b>\n\nhttps://quran.com",
     playing: "🎵 <b>جاري تشغيل:</b> {name}\n👤 <b>القاريء:</b> {reciter}",
     today_hadith_title: "📜 <b>حديث اليوم:</b>",
     page: "صفحة",
@@ -55,7 +57,8 @@ export const STRINGS = {
     download: "📥 تحميل السورة",
   },
   en: {
-    welcome: "👋 <b>Welcome to the Holy Quran Bot</b>\n\nA free service to listen to and download Quran recitations by famous reciters.\n\nChoose from the menu below:",
+    welcome:
+      "👋 <b>Welcome to the Holy Quran Bot</b>\n\nA free service to listen to and download Quran recitations by famous reciters.\n\nChoose from the menu below:",
     lang_set: "✅ Language set to English",
     unknown: "Sorry, I didn't understand that. Please choose from the menu.",
     choose_reciter: "🎙️ <b>Choose the reciter you want to listen to:</b>",
@@ -63,7 +66,8 @@ export const STRINGS = {
     choose_radio: "📻 <b>Choose a radio station:</b>",
     loading: "⏳ Loading...",
     error: "❌ An error occurred, please try again later.",
-    read_text: "📖 <b>You can read the Holy Quran via the following link:</b>\n\nhttps://quran.com",
+    read_text:
+      "📖 <b>You can read the Holy Quran via the following link:</b>\n\nhttps://quran.com",
     playing: "🎵 <b>Now playing:</b> {name}\n👤 <b>Reciter:</b> {reciter}",
     today_hadith_title: "📜 <b>Hadith of the Day:</b>",
     page: "Page",
@@ -71,4 +75,3 @@ export const STRINGS = {
     download: "📥 Download Surah",
   },
 };
-

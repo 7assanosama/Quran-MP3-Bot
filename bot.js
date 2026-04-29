@@ -317,9 +317,12 @@ export class QuranBot {
   getMainMenu(lang) {
     return {
       keyboard: [
-        [{ text: BUTTONS.listen_quran[lang] }],
-        [{ text: BUTTONS.read_quran[lang] }, { text: BUTTONS.radios[lang] }],
-        [{ text: BUTTONS.today_hadith[lang] }, { text: BUTTONS.lang[lang] }],
+        [{ text: BUTTONS.today_hadith[lang] }],
+        [
+          { text: BUTTONS.read_quran[lang] },
+          { text: BUTTONS.listen_quran[lang] },
+        ],
+        [{ text: BUTTONS.radios[lang] }, { text: BUTTONS.lang[lang] }],
       ],
       resize_keyboard: true,
     };
