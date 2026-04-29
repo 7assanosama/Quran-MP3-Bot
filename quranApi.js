@@ -23,6 +23,9 @@ export class QuranAPI {
       const data = await response.json();
 
       if (data && data.reciters) {
+        // Sort reciters alphabetically by name
+        data.reciters.sort((a, b) => a.name.localeCompare(b.name, lang));
+        
         await this.redis.set(cacheKey, data.reciters, { ex: this.cacheTTL });
         return data.reciters;
       }
