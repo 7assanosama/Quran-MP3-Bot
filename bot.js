@@ -79,8 +79,8 @@ export class QuranBot {
     await this.answerCallback(query.id);
 
     if (data.startsWith("reciter:")) {
-      const [, intent, reciterId] = data.split(":");
-      return this.showSuwar(chatId, lang, reciterId, messageId, intent);
+      const [, intent, reciterId, page] = data.split(":");
+      return this.showSuwar(chatId, lang, reciterId, messageId, intent, parseInt(page || "0"));
     }
 
     if (data.startsWith("surah:")) {
@@ -155,10 +155,12 @@ export class QuranBot {
     return this.sendMessage(chatId, text, extra);
   }
 
-  async showSuwar(chatId, lang, reciterId, messageId, intent = "listen") {
+  async showSuwar(chatId, lang, reciterId, messageId, intent = "listen", page = 0) {
     const suwar = await this.quran.getSuwar(lang);
     const reciters = await this.quran.getReciters(lang, reciterId);
     const reciter = reciters[0];
+
+    if (!reciter) return;
 
     const icon = intent === "download" ? "📥" : "🎧";
 
@@ -175,11 +177,17 @@ export class QuranBot {
 
     const availableSuwar = suwar.filter((s) => surahToMoshaf.has(s.id.toString()));
 
+    // Pagination for suwar
+    const pageSize = 60; // 20 rows of 3
+    const start = page * pageSize;
+    const end = start + pageSize;
+    const pagedSuwar = availableSuwar.slice(start, end);
+
     // Create a compact keyboard for suwar (3 per row)
     const keyboard = [];
-    for (let i = 0; i < availableSuwar.length; i += 3) {
+    for (let i = 0; i < pagedSuwar.length; i += 3) {
       keyboard.push(
-        availableSuwar.slice(i, i + 3).map((s) => {
+        pagedSuwar.slice(i, i + 3).map((s) => {
           const mIndex = surahToMoshaf.get(s.id.toString());
           return {
             text: s.name,
@@ -187,6 +195,18 @@ export class QuranBot {
           };
         }),
       );
+    }
+
+    // Pagination buttons
+    const navButtons = [];
+    if (page > 0) {
+      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `reciter:${intent}:${reciterId}:${page - 1}` });
+    }
+    if (end < availableSuwar.length) {
+      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `reciter:${intent}:${reciterId}:${page + 1}` });
+    }
+    if (navButtons.length > 0) {
+      keyboard.push(navButtons);
     }
 
     // Add Back button
