@@ -27,7 +27,6 @@ export class QuranBot {
     const text = message.text?.trim();
     if (!text) return;
 
-    await this.sendAction(chatId, "typing");
     const lang = await this.getLang(chatId);
 
     // Language handling
@@ -76,9 +75,7 @@ export class QuranBot {
       const data = query.data;
       const lang = await this.getLang(chatId);
 
-      // Answer callback to remove loading state (non-blocking)
       this.answerCallback(query.id).catch(() => {});
-      await this.sendAction(chatId, "typing");
 
       if (data.startsWith("lang:")) {
         const newLang = data.split(":")[1];
@@ -124,7 +121,14 @@ export class QuranBot {
         // Handle very old format: surah:reciterId:surahId
         if (parts.length === 5) {
           const [, intent, reciterId, surahId, mIndex] = parts;
-          return this.sendMedia(chatId, lang, reciterId, surahId, mIndex || 0, intent);
+          return this.sendMedia(
+            chatId,
+            lang,
+            reciterId,
+            surahId,
+            mIndex || 0,
+            intent,
+          );
         } else if (parts.length === 4) {
           const [, intent, reciterId, surahId] = parts;
           return this.sendMedia(chatId, lang, reciterId, surahId, 0, intent);
@@ -484,10 +488,17 @@ export class QuranBot {
     return this.sendMessage(chatId, text);
   }
 
-  async sendMedia(chatId, lang, reciterId, surahId, mIndex = 0, intent = "listen") {
+  async sendMedia(
+    chatId,
+    lang,
+    reciterId,
+    surahId,
+    mIndex = 0,
+    intent = "listen",
+  ) {
     const reciters = await this.quran.getReciters(lang, reciterId);
     const suwar = await this.quran.getSuwar(lang);
-    const reciter = reciters[0]; // Since we filtered by ID
+    const reciter = reciters[0];
     const surah = suwar.find((s) => s.id == surahId);
 
     if (!reciter) {
