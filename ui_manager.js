@@ -95,7 +95,7 @@ export class UIManager {
         });
       });
       availableSuwar = suwar.filter((s) => surahToMoshaf.has(s.id.toString()));
-      this._surahToMoshaf = surahToMoshaf; // Temp storage for paging logic
+      // We'll pass actualMIndex directly in the callback instead of using a temp storage
     } else {
       // Specific moshaf selected
       const selectedMoshaf = reciter.moshaf[mIndex];
@@ -117,7 +117,20 @@ export class UIManager {
     for (let i = 0; i < pagedSuwar.length; i += 3) {
       keyboard.push(
         pagedSuwar.slice(i, i + 3).map((s) => {
-          const actualMIndex = mIndex === -1 ? this._surahToMoshaf.get(s.id.toString()) : mIndex;
+          let actualMIndex = mIndex;
+          if (mIndex === -1) {
+            // Recalculate if in fallback mode
+            const surahToMoshaf = new Map();
+            reciter.moshaf.forEach((m, idx) => {
+              m.surah_list.split(/[,\s]+/).forEach((sId) => {
+                const id = sId.trim();
+                if (id && !surahToMoshaf.has(id)) {
+                  surahToMoshaf.set(id, idx);
+                }
+              });
+            });
+            actualMIndex = surahToMoshaf.get(s.id.toString());
+          }
           return {
             text: s.name,
             callback_data: `surah:${intent}:${reciterId}:${s.id}:${actualMIndex}`,

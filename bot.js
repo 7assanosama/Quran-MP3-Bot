@@ -172,7 +172,11 @@ export class QuranBot {
       }
     } catch (e) {
       console.error("Callback Error:", e);
-      return this.sendMessage(query.message.chat.id, `❌ Bot Error: ${e.message}`);
+      try {
+        await this.sendMessage(query.message.chat.id, `❌ Bot Error: ${e.message}`);
+      } catch (err) {
+        console.error("Failed to send error message:", err);
+      }
     }
   }
 

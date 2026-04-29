@@ -12,6 +12,22 @@ export class QuranAPI {
     return `https://www.mp3quran.net/api/quran_pages_arabic/1080/${formattedPage}.png`;
   }
 
+  async fetchWithTimeout(url, options = {}, timeout = 5000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+      return response;
+    } catch (e) {
+      clearTimeout(id);
+      throw e;
+    }
+  }
+
   async getReciters(lang = "ar", reciterId = null) {
     const memKey = `reciters:${lang}`;
     let reciters = memoryCache.get(memKey);
@@ -26,7 +42,7 @@ export class QuranAPI {
 
     if (!reciters) {
       try {
-        const response = await fetch(`${this.baseUrl}/reciters?language=${lang}`);
+        const response = await this.fetchWithTimeout(`${this.baseUrl}/reciters?language=${lang}`);
         const data = await response.json();
         if (data && data.reciters) {
           reciters = data.reciters;
@@ -60,7 +76,7 @@ export class QuranAPI {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/suwar?language=${lang}`);
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/suwar?language=${lang}`);
       const data = await response.json();
 
       if (data && data.suwar) {
@@ -86,9 +102,8 @@ export class QuranAPI {
     }
 
     try {
-      // Radios V2 is still widely used and works with V3
-      const response = await fetch(
-        `https://mp3quran.net/api/radio-v2/radio_${lang}.json`,
+      const response = await this.fetchWithTimeout(
+        `https://mp3quran.net/api/radio-v2/radio_${lang}.json`
       );
       const data = await response.json();
 
@@ -115,8 +130,8 @@ export class QuranAPI {
     }
 
     try {
-      const response = await fetch(
-        "https://www.mp3quran.net/api/today-hadith.php",
+      const response = await this.fetchWithTimeout(
+        "https://www.mp3quran.net/api/today-hadith.php"
       );
       const data = await response.json();
 
