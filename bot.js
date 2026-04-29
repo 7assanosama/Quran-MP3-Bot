@@ -79,13 +79,37 @@ export class QuranBot {
     await this.answerCallback(query.id);
 
     if (data.startsWith("reciter:")) {
-      const [, intent, reciterId, page] = data.split(":");
-      return this.showSuwar(chatId, lang, reciterId, messageId, intent, parseInt(page || "0"));
+      const parts = data.split(":");
+      // Handle new format: reciter:intent:reciterId:page
+      // Handle old format: reciter:intent:reciterId
+      // Handle very old format: reciter:reciterId
+      if (parts.length === 4) {
+        const [, intent, reciterId, page] = parts;
+        return this.showSuwar(chatId, lang, reciterId, messageId, intent, parseInt(page || "0"));
+      } else if (parts.length === 3) {
+        const [, intent, reciterId] = parts;
+        return this.showSuwar(chatId, lang, reciterId, messageId, intent, 0);
+      } else if (parts.length === 2) {
+        const [, reciterId] = parts;
+        return this.showSuwar(chatId, lang, reciterId, messageId, "listen", 0);
+      }
     }
 
     if (data.startsWith("surah:")) {
-      const [, intent, reciterId, surahId, mIndex] = data.split(":");
-      return this.sendAudio(chatId, lang, reciterId, surahId, mIndex || 0);
+      const parts = data.split(":");
+      // Handle new format: surah:intent:reciterId:surahId:mIndex
+      // Handle old format: surah:intent:reciterId:surahId
+      // Handle very old format: surah:reciterId:surahId
+      if (parts.length === 5) {
+        const [, intent, reciterId, surahId, mIndex] = parts;
+        return this.sendAudio(chatId, lang, reciterId, surahId, mIndex || 0);
+      } else if (parts.length === 4) {
+        const [, intent, reciterId, surahId] = parts;
+        return this.sendAudio(chatId, lang, reciterId, surahId, 0);
+      } else if (parts.length === 3) {
+        const [, reciterId, surahId] = parts;
+        return this.sendAudio(chatId, lang, reciterId, surahId, 0);
+      }
     }
 
     if (data.startsWith("show_reciters:")) {
@@ -339,10 +363,13 @@ export class QuranBot {
     const server = reciter.moshaf[mIndex].server;
     const formattedSurah = surahId.toString().padStart(3, "0");
     const audioUrl = `${server}${formattedSurah}.mp3`;
-
     const text = STRINGS[lang].playing
       .replace("{name}", surah.name)
       .replace("{reciter}", reciter.name);
+
+    const keyboard = [
+      [{ text: BUTTONS.read_surah[lang], callback_data: `page:${surah.start_page}` }],
+    ];
 
     return this.callTelegram("sendAudio", {
       chat_id: chatId,
@@ -351,6 +378,7 @@ export class QuranBot {
       parse_mode: "HTML",
       title: surah.name,
       performer: reciter.name,
+      reply_markup: { inline_keyboard: keyboard },
     });
   }
 

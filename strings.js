@@ -42,6 +42,10 @@ export const BUTTONS = {
   prev_list: {
     ar: "➡️ السابق",
     en: "⬅️ Previous",
+  },
+  read_surah: {
+    ar: "📖 قراءة السورة",
+    en: "📖 Read Surah",
   }
 };
 
