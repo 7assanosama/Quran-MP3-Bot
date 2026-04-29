@@ -38,35 +38,76 @@ export class UIManager {
     return this.bot.sendMessage(chatId, text, extra);
   }
 
-  async showSuwar(chatId, lang, reciterId, messageId, intent = "listen", page = 0) {
-    const suwar = await this.bot.quran.getSuwar(lang);
+  async showMoshafs(chatId, lang, reciterId, messageId, intent = "listen") {
     const reciters = await this.bot.quran.getReciters(lang, reciterId);
     const reciter = reciters[0];
 
     if (!reciter) {
       return this.bot.sendMessage(chatId, `❌ Error: Reciter ID ${reciterId} not found.`);
     }
-    if (!reciter.moshaf) {
-      return this.bot.sendMessage(chatId, `❌ Error: No moshaf data found for reciter ${reciter.name}.`);
+
+    // If only 1 moshaf, skip and show suwar
+    if (reciter.moshaf && reciter.moshaf.length === 1) {
+      return this.showSuwar(chatId, lang, reciterId, messageId, intent, 0, 0);
     }
 
     const icon = intent === "download" ? "📥" : "🎧";
+    const keyboard = reciter.moshaf.map((m, index) => [
+      {
+        text: `${icon} ${m.name}`,
+        callback_data: `moshaf:${intent}:${reciterId}:${index}`,
+      },
+    ]);
 
-    // Build a map of surahId -> moshafIndex to handle reciters with multiple collections
-    const surahToMoshaf = new Map();
-    reciter.moshaf.forEach((m, mIndex) => {
-      m.surah_list.split(/[,\s]+/).forEach((sId) => {
-        const id = sId.trim();
-        if (id && !surahToMoshaf.has(id)) {
-          surahToMoshaf.set(id, mIndex);
-        }
-      });
+    // Add Back button
+    keyboard.push([
+      { text: BUTTONS.back[lang], callback_data: `show_reciters:${intent}` },
+    ]);
+
+    const text = `👤 <b>${reciter.name}</b>\n\n${STRINGS[lang].choose_moshaf || "اختر الرواية / المصحف:"}`;
+    return this.bot.editMessage(chatId, messageId, text, {
+      reply_markup: { inline_keyboard: keyboard },
     });
+  }
 
-    const availableSuwar = suwar.filter((s) => surahToMoshaf.has(s.id.toString()));
+  async showSuwar(chatId, lang, reciterId, messageId, intent = "listen", page = 0, mIndex = -1) {
+    const suwar = await this.bot.quran.getSuwar(lang);
+    const reciters = await this.bot.quran.getReciters(lang, reciterId);
+    const reciter = reciters[0];
+
+    if (!reciter || !reciter.moshaf) {
+      return this.bot.sendMessage(chatId, "❌ Error: Reciter or collection not found.");
+    }
+
+    const icon = intent === "download" ? "📥" : "🎧";
+    let availableSuwar = [];
+    let currentMoshafName = "";
+
+    if (mIndex === -1) {
+      // Old behavior: merge all (fallback)
+      const surahToMoshaf = new Map();
+      reciter.moshaf.forEach((m, idx) => {
+        m.surah_list.split(/[,\s]+/).forEach((sId) => {
+          const id = sId.trim();
+          if (id && !surahToMoshaf.has(id)) {
+            surahToMoshaf.set(id, idx);
+          }
+        });
+      });
+      availableSuwar = suwar.filter((s) => surahToMoshaf.has(s.id.toString()));
+      this._surahToMoshaf = surahToMoshaf; // Temp storage for paging logic
+    } else {
+      // Specific moshaf selected
+      const selectedMoshaf = reciter.moshaf[mIndex];
+      if (!selectedMoshaf) return this.bot.sendMessage(chatId, "❌ Error: Collection not found.");
+      
+      currentMoshafName = selectedMoshaf.name;
+      const surahIds = selectedMoshaf.surah_list.split(/[,\s]+/).map(id => id.trim());
+      availableSuwar = suwar.filter((s) => surahIds.includes(s.id.toString()));
+    }
 
     // Pagination for suwar
-    const pageSize = 60; // 20 rows of 3
+    const pageSize = 60;
     const start = page * pageSize;
     const end = start + pageSize;
     const pagedSuwar = availableSuwar.slice(start, end);
@@ -76,10 +117,10 @@ export class UIManager {
     for (let i = 0; i < pagedSuwar.length; i += 3) {
       keyboard.push(
         pagedSuwar.slice(i, i + 3).map((s) => {
-          const mIndex = surahToMoshaf.get(s.id.toString());
+          const actualMIndex = mIndex === -1 ? this._surahToMoshaf.get(s.id.toString()) : mIndex;
           return {
             text: s.name,
-            callback_data: `surah:${intent}:${reciterId}:${s.id}:${mIndex}`,
+            callback_data: `surah:${intent}:${reciterId}:${s.id}:${actualMIndex}`,
           };
         }),
       );
@@ -88,21 +129,24 @@ export class UIManager {
     // Pagination buttons
     const navButtons = [];
     if (page > 0) {
-      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `reciter:${intent}:${reciterId}:${page - 1}` });
+      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `moshaf_page:${intent}:${reciterId}:${mIndex}:${page - 1}` });
     }
     if (end < availableSuwar.length) {
-      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `reciter:${intent}:${reciterId}:${page + 1}` });
+      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `moshaf_page:${intent}:${reciterId}:${mIndex}:${page + 1}` });
     }
     if (navButtons.length > 0) {
       keyboard.push(navButtons);
     }
 
     // Add Back button
+    const backCallback = mIndex === -1 ? `show_reciters:${intent}` : `reciter:${intent}:${reciterId}`;
     keyboard.push([
-      { text: BUTTONS.back[lang], callback_data: `show_reciters:${intent}` },
+      { text: BUTTONS.back[lang], callback_data: backCallback },
     ]);
 
-    const text = `${icon} <b>${reciter?.name}</b>\n\n${STRINGS[lang].choose_surah}`;
+    const title = currentMoshafName ? `${reciter.name}\n📖 ${currentMoshafName}` : reciter.name;
+    const text = `${icon} <b>${title}</b>\n\n${STRINGS[lang].choose_surah}`;
+    
     return this.bot.editMessage(chatId, messageId, text, {
       reply_markup: { inline_keyboard: keyboard },
     });

@@ -99,12 +99,25 @@ export class QuranBot {
 
       if (data.startsWith("reciter:")) {
         const parts = data.split(":");
+        if (parts.length >= 3) {
+          const [, intent, reciterId] = parts;
+          return this.ui.showMoshafs(chatId, lang, reciterId, messageId, intent);
+        }
+      }
+
+      if (data.startsWith("moshaf:")) {
+        const parts = data.split(":");
         if (parts.length === 4) {
-          return this.ui.showSuwar(chatId, lang, parts[2], messageId, parts[1], parseInt(parts[3] || "0"));
-        } else if (parts.length === 3) {
-          return this.ui.showSuwar(chatId, lang, parts[2], messageId, parts[1], 0);
-        } else if (parts.length === 2) {
-          return this.ui.showSuwar(chatId, lang, parts[1], messageId, "listen", 0);
+          const [, intent, reciterId, mIndex] = parts;
+          return this.ui.showSuwar(chatId, lang, reciterId, messageId, intent, 0, parseInt(mIndex));
+        }
+      }
+
+      if (data.startsWith("moshaf_page:")) {
+        const parts = data.split(":");
+        if (parts.length === 6) {
+          const [, intent, reciterId, mIndex, page] = parts;
+          return this.ui.showSuwar(chatId, lang, reciterId, messageId, intent, parseInt(page), parseInt(mIndex));
         }
       }
 
@@ -112,10 +125,6 @@ export class QuranBot {
         const parts = data.split(":");
         if (parts.length === 5) {
           return this.media.sendMedia(chatId, lang, parts[2], parts[3], parts[4] || 0, parts[1]);
-        } else if (parts.length === 4) {
-          return this.media.sendMedia(chatId, lang, parts[2], parts[3], 0, parts[1]);
-        } else if (parts.length === 3) {
-          return this.media.sendMedia(chatId, lang, parts[1], parts[2], 0, "listen");
         }
       }
 
