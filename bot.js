@@ -3,28 +3,44 @@ import { Redis } from "@upstash/redis";
 import { QuranAPI } from "./quranApi.js";
 import { UIManager } from "./ui_manager.js";
 import { MediaManager } from "./media_manager.js";
+import { TelegramAPI } from "./telegram_api.js";
+import { CALLBACK_PREFIX, STATE, CACHE } from "./constants.js";
 
+/**
+ * Main Quran Bot Controller
+ */
 export class QuranBot {
   constructor(env) {
     this.env = env;
-    this.token = env.TELEGRAM_BOT_TOKEN;
     this.redis = new Redis({
       url: env.UPSTASH_REDIS_REST_URL,
       token: env.UPSTASH_REDIS_REST_TOKEN,
     });
+    
+    this.telegram = new TelegramAPI(env.TELEGRAM_BOT_TOKEN);
     this.quran = new QuranAPI(this.redis);
     this.ui = new UIManager(this);
     this.media = new MediaManager(this);
   }
 
+  /**
+   * Main entry point for all Telegram updates
+   */
   async handleUpdate(update) {
-    if (update.message) {
-      return this.handleMessage(update.message);
-    } else if (update.callback_query) {
-      return this.handleCallback(update.callback_query);
+    try {
+      if (update.message) {
+        return await this.handleMessage(update.message);
+      } else if (update.callback_query) {
+        return await this.handleCallback(update.callback_query);
+      }
+    } catch (error) {
+      console.error("Global Update Error:", error);
     }
   }
 
+  /**
+   * Handle incoming text messages
+   */
   async handleMessage(message) {
     const chatId = message.chat.id;
     const text = message.text?.trim();
@@ -32,14 +48,14 @@ export class QuranBot {
 
     const lang = await this.getLang(chatId);
 
-    // Language handling
+    // Language Toggle
     if (text === BUTTONS.lang[lang]) {
       const newLang = lang === "ar" ? "en" : "ar";
       await this.setLang(chatId, newLang);
       return this.sendResponse(chatId, newLang, "lang_set");
     }
 
-    // Commands
+    // Main Commands
     if (text === "/start" || text === BUTTONS.back?.ar || text === BUTTONS.back?.en) {
       return this.sendResponse(chatId, lang, "welcome");
     }
@@ -60,7 +76,7 @@ export class QuranBot {
       return this.ui.showRadios(chatId, lang);
     }
 
-    // Quick Page Navigation
+    // Direct Page Number Navigation
     if (/^\d+$/.test(text)) {
       const pageNum = parseInt(text);
       if (pageNum >= 1 && pageNum <= 604) {
@@ -68,10 +84,10 @@ export class QuranBot {
       }
     }
 
-    // State handling
-    const state = await this.redis.get(`state:${chatId}`);
-    if (state === "waiting_page" && /^\d+$/.test(text)) {
-      await this.redis.del(`state:${chatId}`);
+    // State-based handling (e.g., waiting for page number)
+    const state = await this.redis.get(CACHE.STATE(chatId));
+    if (state === STATE.WAITING_PAGE && /^\d+$/.test(text)) {
+      await this.redis.del(CACHE.STATE(chatId));
       const pageNum = parseInt(text);
       if (pageNum >= 1 && pageNum <= 604) {
         return this.ui.showQuranPage(chatId, lang, pageNum);
@@ -81,161 +97,115 @@ export class QuranBot {
     return this.sendResponse(chatId, lang, "welcome");
   }
 
+  /**
+   * Handle incoming callback queries (button clicks)
+   */
   async handleCallback(query) {
+    const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
+    const data = query.data;
+
     try {
-      const chatId = query.message.chat.id;
-      const messageId = query.message.message_id;
-      const data = query.data;
       const lang = await this.getLang(chatId);
+      
+      // Instantly acknowledge the callback to remove the loading state
+      this.telegram.answerCallback(query.id).catch(() => {});
 
-      // Answer callback to remove loading state (non-blocking)
-      this.answerCallback(query.id).catch(() => {});
-
-      if (data.startsWith("lang:")) {
+      // Language selection
+      if (data.startsWith(CALLBACK_PREFIX.LANG)) {
         const newLang = data.split(":")[1];
         await this.setLang(chatId, newLang);
         return this.sendResponse(chatId, newLang, "welcome");
       }
 
-      if (data.startsWith("reciter:")) {
-        const parts = data.split(":");
-        if (parts.length >= 3) {
-          const [, intent, reciterId] = parts;
-          return this.ui.showMoshafs(chatId, lang, reciterId, messageId, intent);
-        }
+      // Reciter & Moshaf selection
+      if (data.startsWith(CALLBACK_PREFIX.RECITER)) {
+        const [, intent, reciterId] = data.split(":");
+        return this.ui.showMoshafs(chatId, lang, reciterId, messageId, intent);
       }
 
-      if (data.startsWith("moshaf:")) {
-        const parts = data.split(":");
-        if (parts.length === 4) {
-          const [, intent, reciterId, mIndex] = parts;
-          return this.ui.showSuwar(chatId, lang, reciterId, messageId, intent, 0, parseInt(mIndex));
-        }
+      if (data.startsWith(CALLBACK_PREFIX.MOSHAF)) {
+        const [, intent, reciterId, mIndex] = data.split(":");
+        return this.ui.showSuwar(chatId, lang, reciterId, messageId, intent, 0, parseInt(mIndex));
       }
 
-      if (data.startsWith("moshaf_page:")) {
-        const parts = data.split(":");
-        if (parts.length === 5) {
-          const [, intent, reciterId, mIndex, page] = parts;
-          return this.ui.showSuwar(chatId, lang, reciterId, messageId, intent, parseInt(page), parseInt(mIndex));
-        }
+      if (data.startsWith(CALLBACK_PREFIX.MOSHAF_PAGE)) {
+        const [, intent, reciterId, mIndex, page] = data.split(":");
+        return this.ui.showSuwar(chatId, lang, reciterId, messageId, intent, parseInt(page), parseInt(mIndex));
       }
 
-      if (data.startsWith("surah:")) {
-        const parts = data.split(":");
-        if (parts.length === 5) {
-          return this.media.sendMedia(chatId, lang, parts[2], parts[3], parts[4] || 0, parts[1]);
-        }
+      // Media delivery
+      if (data.startsWith(CALLBACK_PREFIX.SURAH)) {
+        const [, intent, reciterId, surahId, mIndex] = data.split(":");
+        return this.media.sendMedia(chatId, lang, reciterId, surahId, parseInt(mIndex), intent);
       }
 
-      if (data.startsWith("show_reciters:")) {
-        const parts = data.split(":");
-        return this.ui.showReciters(chatId, lang, messageId, parts[1], parseInt(parts[2] || "0"));
+      // UI Lists
+      if (data.startsWith(CALLBACK_PREFIX.SHOW_RECITERS)) {
+        const [, intent, page] = data.split(":");
+        return this.ui.showReciters(chatId, lang, messageId, intent, parseInt(page || "0"));
       }
 
-      if (data.startsWith("show_radios:")) {
-        const parts = data.split(":");
-        return this.ui.showRadios(chatId, lang, messageId, parseInt(parts[1] || "0"));
+      if (data.startsWith(CALLBACK_PREFIX.SHOW_RADIOS)) {
+        const page = data.split(":")[1];
+        return this.ui.showRadios(chatId, lang, messageId, parseInt(page || "0"));
       }
 
-      if (data.startsWith("page:")) {
+      if (data.startsWith(CALLBACK_PREFIX.SHOW_READ_SUWAR)) {
+        const page = data.split(":")[1];
+        return this.ui.showReadSuwar(chatId, lang, messageId, parseInt(page || "0"));
+      }
+
+      // Page Navigation
+      if (data.startsWith(CALLBACK_PREFIX.PAGE)) {
         const pageNum = parseInt(data.split(":")[1]);
         return this.ui.showQuranPage(chatId, lang, pageNum, messageId);
       }
 
-      if (data.startsWith("read_surah:")) {
+      if (data.startsWith(CALLBACK_PREFIX.READ_SURAH)) {
         const surahId = data.split(":")[1];
         const suwar = await this.quran.getSuwar(lang);
         const surah = suwar.find((s) => s.id == surahId);
-        if (surah) {
-          return this.ui.showQuranPage(chatId, lang, surah.start_page);
-        }
+        if (surah) return this.ui.showQuranPage(chatId, lang, surah.start_page);
       }
 
-      if (data.startsWith("show_read_suwar:")) {
-        const page = parseInt(data.split(":")[1] || "0");
-        return this.ui.showReadSuwar(chatId, lang, messageId, page);
+      // Other actions
+      if (data === CALLBACK_PREFIX.GOTO_PAGE) {
+        await this.redis.set(CACHE.STATE(chatId), STATE.WAITING_PAGE);
+        return this.telegram.sendMessage(chatId, STRINGS[lang].enter_page);
       }
 
-      if (data.startsWith("dl_file:")) {
-        const [, reciterId, surahId] = data.split(":");
-        return this.media.sendMedia(chatId, lang, reciterId, surahId, 0, "download");
-      }
-
-      if (data === "goto_page") {
-        await this.redis.set(`state:${chatId}`, "waiting_page");
-        return this.sendMessage(chatId, STRINGS[lang].enter_page);
-      }
-
-      if (data === "main_menu") {
+      if (data === CALLBACK_PREFIX.MAIN_MENU) {
         return this.sendResponse(chatId, lang, "welcome");
       }
+
     } catch (e) {
-      console.error("Callback Error:", e);
+      console.error("Callback Processing Error:", e);
       try {
-        await this.sendMessage(query.message.chat.id, `❌ Bot Error: ${e.message}`);
+        await this.telegram.sendMessage(chatId, `❌ Bot Error: ${e.message}`);
       } catch (err) {
-        console.error("Failed to send error message:", err);
+        /* Silent fail if even error reporting fails */
       }
     }
   }
 
-  // Communication Helpers
-  async callTelegram(method, params) {
-    const url = `https://api.telegram.org/bot${this.token}/${method}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-    });
-    const result = await response.json();
-    if (!result.ok) {
-      console.error(`Telegram API Error (${method}):`, result);
-      throw new Error(`Telegram API Error: ${result.description}`);
-    }
-    return result;
-  }
-
-  async sendMessage(chatId, text, extra = {}) {
-    return this.callTelegram("sendMessage", {
-      chat_id: chatId,
-      text,
-      parse_mode: "HTML",
-      ...extra,
-    });
-  }
-
-  async editMessage(chatId, messageId, text, extra = {}) {
-    return this.callTelegram("editMessageText", {
-      chat_id: chatId,
-      message_id: messageId,
-      text,
-      parse_mode: "HTML",
-      ...extra,
-    });
-  }
-
-  async answerCallback(callbackQueryId) {
-    return this.callTelegram("answerCallbackQuery", {
-      callback_query_id: callbackQueryId,
-    });
-  }
+  // --- Helpers ---
 
   async sendResponse(chatId, lang, stringKey) {
     const text = STRINGS[lang][stringKey] || STRINGS[lang].welcome;
     const keyboard = this.ui.getMainMenu(lang);
-    return this.sendMessage(chatId, text, { reply_markup: keyboard });
+    return this.telegram.sendMessage(chatId, text, { reply_markup: keyboard });
   }
 
   async getLang(chatId) {
     try {
-      return (await this.redis.get(`lang:${chatId}`)) || "ar";
+      return (await this.redis.get(CACHE.LANG(chatId))) || "ar";
     } catch (e) {
       return "ar";
     }
   }
 
   async setLang(chatId, lang) {
-    return this.redis.set(`lang:${chatId}`, lang);
+    return this.redis.set(CACHE.LANG(chatId), lang);
   }
 }
