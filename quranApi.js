@@ -1,3 +1,5 @@
+let memoryCache = new Map();
+
 export class QuranAPI {
   constructor(redis) {
     this.baseUrl = "https://mp3quran.net/api/v3";
@@ -11,11 +13,20 @@ export class QuranAPI {
   }
 
   async getReciters(lang = "ar", reciterId = null) {
+    const memKey = `reciters:${lang}`;
+    if (!reciterId && memoryCache.has(memKey)) {
+      return memoryCache.get(memKey);
+    }
+
     const cacheKey = reciterId
       ? `cache:reciter:${reciterId}:${lang}`
       : `cache:reciters:${lang}`;
     const cached = await this.redis.get(cacheKey);
-    if (cached) return cached;
+    
+    if (cached) {
+      if (!reciterId) memoryCache.set(memKey, cached);
+      return cached;
+    }
 
     try {
       let url = `${this.baseUrl}/reciters?language=${lang}`;
@@ -29,6 +40,7 @@ export class QuranAPI {
         data.reciters.sort((a, b) => a.name.localeCompare(b.name, lang));
 
         await this.redis.set(cacheKey, data.reciters, { ex: this.cacheTTL });
+        if (!reciterId) memoryCache.set(memKey, data.reciters);
         return data.reciters;
       }
     } catch (e) {
@@ -38,9 +50,15 @@ export class QuranAPI {
   }
 
   async getSuwar(lang = "ar") {
+    const memKey = `suwar:${lang}`;
+    if (memoryCache.has(memKey)) return memoryCache.get(memKey);
+
     const cacheKey = `cache:suwar:${lang}`;
     const cached = await this.redis.get(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      memoryCache.set(memKey, cached);
+      return cached;
+    }
 
     try {
       const response = await fetch(`${this.baseUrl}/suwar?language=${lang}`);
@@ -48,6 +66,7 @@ export class QuranAPI {
 
       if (data && data.suwar) {
         await this.redis.set(cacheKey, data.suwar, { ex: this.cacheTTL });
+        memoryCache.set(memKey, data.suwar);
         return data.suwar;
       }
     } catch (e) {
@@ -57,9 +76,15 @@ export class QuranAPI {
   }
 
   async getRadios(lang = "ar") {
+    const memKey = `radios:${lang}`;
+    if (memoryCache.has(memKey)) return memoryCache.get(memKey);
+
     const cacheKey = `cache:radios:${lang}`;
     const cached = await this.redis.get(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      memoryCache.set(memKey, cached);
+      return cached;
+    }
 
     try {
       // Radios V2 is still widely used and works with V3
@@ -70,6 +95,7 @@ export class QuranAPI {
 
       if (data && data.radios) {
         await this.redis.set(cacheKey, data.radios, { ex: this.cacheTTL });
+        memoryCache.set(memKey, data.radios);
         return data.radios;
       }
     } catch (e) {
@@ -79,9 +105,15 @@ export class QuranAPI {
   }
 
   async getTodayHadith() {
+    const memKey = "today_hadith";
+    if (memoryCache.has(memKey)) return memoryCache.get(memKey);
+
     const cacheKey = "cache:today_hadith";
     const cached = await this.redis.get(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      memoryCache.set(memKey, cached);
+      return cached;
+    }
 
     try {
       const response = await fetch(
@@ -91,6 +123,7 @@ export class QuranAPI {
 
       if (data && data.language) {
         await this.redis.set(cacheKey, data.language, { ex: this.cacheTTL });
+        memoryCache.set(memKey, data.language);
         return data.language;
       }
     } catch (e) {
