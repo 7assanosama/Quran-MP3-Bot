@@ -67,6 +67,9 @@ export const STRINGS = {
     page: "صفحة",
     enter_page: "🔢 <b>أرسل رقم الصفحة للانتقال إليها مباشرة (1-604):</b>",
     download: "📥 تحميل السورة",
+    choose_moshaf: "🎙️ <b>اختر الرواية / المصحف:</b>",
+    direct_link: "رابط مباشر للملف",
+    file_too_large: "هذا الملف كبير جداً بالنسبة لتليجرام، يمكنك الاستماع إليه مباشرة عبر الرابط التالي:",
   },
   en: {
     welcome:
@@ -85,5 +88,8 @@ export const STRINGS = {
     page: "Page",
     enter_page: "🔢 <b>Send a page number to go to it directly (1-604):</b>",
     download: "📥 Download Surah",
+    choose_moshaf: "🎙️ <b>Choose the Riwayah / Collection:</b>",
+    direct_link: "Direct link to the file",
+    file_too_large: "This file is too large for Telegram, you can listen to it directly here:",
   },
 };
