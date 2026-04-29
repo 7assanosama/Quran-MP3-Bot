@@ -84,11 +84,8 @@ export class QuranBot {
     }
 
     if (data.startsWith("surah:")) {
-      const [, intent, reciterId, surahId] = data.split(":");
-      if (intent === "download") {
-        return this.sendAudio(chatId, lang, reciterId, surahId);
-      }
-      return this.sendAudio(chatId, lang, reciterId, surahId);
+      const [, intent, reciterId, surahId, mIndex] = data.split(":");
+      return this.sendAudio(chatId, lang, reciterId, surahId, mIndex || 0);
     }
 
     if (data.startsWith("show_reciters:")) {
@@ -160,23 +157,35 @@ export class QuranBot {
 
   async showSuwar(chatId, lang, reciterId, messageId, intent = "listen") {
     const suwar = await this.quran.getSuwar(lang);
-    const reciters = await this.quran.getReciters(lang);
-    const reciter = reciters.find((r) => r.id == reciterId);
+    const reciters = await this.quran.getReciters(lang, reciterId);
+    const reciter = reciters[0];
 
     const icon = intent === "download" ? "📥" : "🎧";
 
-    // Filter suwar to only those available for this reciter
-    const availableSurahIds = reciter.moshaf[0].surah_list.split(",");
-    const availableSuwar = suwar.filter((s) => availableSurahIds.includes(s.id.toString()));
+    // Build a map of surahId -> moshafIndex to handle reciters with multiple collections
+    const surahToMoshaf = new Map();
+    reciter.moshaf.forEach((m, mIndex) => {
+      m.surah_list.split(",").forEach((sId) => {
+        const id = sId.trim();
+        if (id && !surahToMoshaf.has(id)) {
+          surahToMoshaf.set(id, mIndex);
+        }
+      });
+    });
+
+    const availableSuwar = suwar.filter((s) => surahToMoshaf.has(s.id.toString()));
 
     // Create a compact keyboard for suwar (3 per row)
     const keyboard = [];
     for (let i = 0; i < availableSuwar.length; i += 3) {
       keyboard.push(
-        availableSuwar.slice(i, i + 3).map((s) => ({
-          text: s.name,
-          callback_data: `surah:${intent}:${reciterId}:${s.id}`,
-        })),
+        availableSuwar.slice(i, i + 3).map((s) => {
+          const mIndex = surahToMoshaf.get(s.id.toString());
+          return {
+            text: s.name,
+            callback_data: `surah:${intent}:${reciterId}:${s.id}:${mIndex}`,
+          };
+        }),
       );
     }
 
@@ -299,15 +308,15 @@ export class QuranBot {
     return this.sendMessage(chatId, text);
   }
 
-  async sendAudio(chatId, lang, reciterId, surahId) {
+  async sendAudio(chatId, lang, reciterId, surahId, mIndex = 0) {
     const reciters = await this.quran.getReciters(lang, reciterId);
     const suwar = await this.quran.getSuwar(lang);
     const reciter = reciters[0]; // Since we filtered by ID
     const surah = suwar.find((s) => s.id == surahId);
 
-    if (!reciter || !surah) return;
+    if (!reciter || !surah || !reciter.moshaf[mIndex]) return;
 
-    const server = reciter.moshaf[0].server;
+    const server = reciter.moshaf[mIndex].server;
     const formattedSurah = surahId.toString().padStart(3, "0");
     const audioUrl = `${server}${formattedSurah}.mp3`;
 
