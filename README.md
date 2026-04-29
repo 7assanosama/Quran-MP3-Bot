@@ -84,3 +84,12 @@ To deploy the bot, you need the following environment variables in your `wrangle
 ## 🤝 Contribution
 
 Contributions are welcome! If you'd like to improve the bot or fix a bug, please feel free to open a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+---
+
+**Developed with ❤️ by [7assanosama]**
+*(Assisted by Antigravity AI)*
