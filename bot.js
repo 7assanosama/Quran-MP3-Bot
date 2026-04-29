@@ -43,7 +43,11 @@ export class QuranBot {
     }
 
     if (text === BUTTONS.listen_quran[lang]) {
-      return this.showReciters(chatId, lang);
+      return this.showReciters(chatId, lang, null, "listen");
+    }
+
+    if (text === BUTTONS.download_quran[lang]) {
+      return this.showReciters(chatId, lang, null, "download");
     }
 
     if (text === BUTTONS.read_quran[lang]) {
@@ -79,17 +83,21 @@ export class QuranBot {
     await this.answerCallback(query.id);
 
     if (data.startsWith("reciter:")) {
-      const reciterId = data.split(":")[1];
-      return this.showSuwar(chatId, lang, reciterId, messageId);
+      const [, intent, reciterId] = data.split(":");
+      return this.showSuwar(chatId, lang, reciterId, messageId, intent);
     }
 
     if (data.startsWith("surah:")) {
-      const [, reciterId, surahId] = data.split(":");
-      return this.sendAudio(chatId, lang, reciterId, surahId);
+      const [, intent, reciterId, surahId] = data.split(":");
+      if (intent === "download") {
+        return this.sendAudio(chatId, lang, reciterId, surahId, true);
+      }
+      return this.sendAudio(chatId, lang, reciterId, surahId, false);
     }
 
-    if (data === "show_reciters") {
-      return this.showReciters(chatId, lang, messageId);
+    if (data.startsWith("show_reciters:")) {
+      const intent = data.split(":")[1];
+      return this.showReciters(chatId, lang, messageId, intent);
     }
 
     if (data.startsWith("page:")) {
@@ -109,12 +117,13 @@ export class QuranBot {
     }
   }
 
-  async showReciters(chatId, lang, messageId = null) {
+  async showReciters(chatId, lang, messageId = null, intent = "listen") {
     const reciters = await this.quran.getReciters(lang);
     const topReciters = reciters.slice(0, 20);
-
+    
+    const icon = intent === "download" ? "📥" : "🎧";
     const keyboard = topReciters.map((r) => [
-      { text: r.name, callback_data: `reciter:${r.id}` },
+      { text: `${icon} ${r.name}`, callback_data: `reciter:${intent}:${r.id}` },
     ]);
 
     const text = STRINGS[lang].choose_reciter;
@@ -126,10 +135,12 @@ export class QuranBot {
     return this.sendMessage(chatId, text, extra);
   }
 
-  async showSuwar(chatId, lang, reciterId, messageId) {
+  async showSuwar(chatId, lang, reciterId, messageId, intent = "listen") {
     const suwar = await this.quran.getSuwar(lang);
     const reciters = await this.quran.getReciters(lang);
     const reciter = reciters.find((r) => r.id == reciterId);
+    
+    const icon = intent === "download" ? "📥" : "🎧";
 
     // Create a compact keyboard for suwar (3 per row)
     const keyboard = [];
@@ -137,15 +148,15 @@ export class QuranBot {
       keyboard.push(
         suwar.slice(i, i + 3).map((s) => ({
           text: s.name,
-          callback_data: `surah:${reciterId}:${s.id}`,
+          callback_data: `surah:${intent}:${reciterId}:${s.id}`,
         }))
       );
     }
 
     // Add Back button
-    keyboard.push([{ text: BUTTONS.back[lang], callback_data: "show_reciters" }]);
+    keyboard.push([{ text: BUTTONS.back[lang], callback_data: `show_reciters:${intent}` }]);
 
-    const text = `🎙️ <b>${reciter?.name}</b>\n\n${STRINGS[lang].choose_surah}`;
+    const text = `${icon} <b>${reciter?.name}</b>\n\n${STRINGS[lang].choose_surah}`;
     return this.editMessage(chatId, messageId, text, {
       reply_markup: { inline_keyboard: keyboard },
     });
@@ -229,7 +240,7 @@ export class QuranBot {
     return this.sendMessage(chatId, text);
   }
 
-  async sendAudio(chatId, lang, reciterId, surahId) {
+  async sendAudio(chatId, lang, reciterId, surahId, asDocument = false) {
     const reciters = await this.quran.getReciters(lang);
     const suwar = await this.quran.getSuwar(lang);
     const reciter = reciters.find((r) => r.id == reciterId);
@@ -237,8 +248,6 @@ export class QuranBot {
 
     if (!reciter || !surah) return;
 
-    // Construct Server URL
-    // The API usually gives a server URL in the reciter object
     const server = reciter.moshaf[0].server;
     const formattedSurah = surahId.toString().padStart(3, "0");
     const audioUrl = `${server}${formattedSurah}.mp3`;
@@ -246,6 +255,15 @@ export class QuranBot {
     const text = STRINGS[lang].playing
       .replace("{name}", surah.name)
       .replace("{reciter}", reciter.name);
+
+    if (asDocument) {
+      return this.callTelegram("sendDocument", {
+        chat_id: chatId,
+        document: audioUrl,
+        caption: text,
+        parse_mode: "HTML"
+      });
+    }
 
     return this.callTelegram("sendAudio", {
       chat_id: chatId,
@@ -280,9 +298,9 @@ export class QuranBot {
   getMainMenu(lang) {
     return {
       keyboard: [
-        [{ text: BUTTONS.listen_quran[lang] }, { text: BUTTONS.read_quran[lang] }],
-        [{ text: BUTTONS.radios[lang] }, { text: BUTTONS.today_hadith[lang] }],
-        [{ text: BUTTONS.lang[lang] }],
+        [{ text: BUTTONS.listen_quran[lang] }, { text: BUTTONS.download_quran[lang] }],
+        [{ text: BUTTONS.read_quran[lang] }, { text: BUTTONS.radios[lang] }],
+        [{ text: BUTTONS.today_hadith[lang] }, { text: BUTTONS.lang[lang] }],
       ],
       resize_keyboard: true,
     };

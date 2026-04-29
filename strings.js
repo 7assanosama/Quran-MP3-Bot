@@ -8,8 +8,12 @@ export const BUTTONS = {
     en: "📖 Read the Holy Quran",
   },
   listen_quran: {
-    ar: "🎙️ الاستماع للقرآن الكريم",
-    en: "🎙️ Listen to the Holy Quran",
+    ar: "🎧 استماع",
+    en: "🎧 Listen",
+  },
+  download_quran: {
+    ar: "📥 تحميل",
+    en: "📥 Download",
   },
   radios: {
     ar: "📻 الإذاعات",
