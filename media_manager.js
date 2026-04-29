@@ -51,6 +51,17 @@ export class MediaManager {
       params.performer = reciter.name;
     }
 
-    return this.bot.callTelegram(method, params);
+    try {
+      return await this.bot.callTelegram(method, params);
+    } catch (e) {
+      if (e.message.includes("failed to get HTTP content") || e.message.includes("wrong file identifier")) {
+        // Fallback for large files (>20MB) or other URL issues
+        const fallbackText = `⚠️ <b>${surah.name} - ${reciter.name}</b>\n\n${STRINGS[lang].file_too_large || "الملف كبير جداً على تليجرام، يمكنك الاستماع إليه مباشرة من هنا:"}\n\n🔗 <a href="${audioUrl}">${STRINGS[lang].direct_link || "رابط مباشر للملف"}</a>`;
+        return this.bot.sendMessage(chatId, fallbackText, {
+          reply_markup: { inline_keyboard: keyboard },
+        });
+      }
+      throw e; // Re-throw if it's another type of error
+    }
   }
 }
