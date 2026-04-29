@@ -165,11 +165,15 @@ export class QuranBot {
 
     const icon = intent === "download" ? "📥" : "🎧";
 
+    // Filter suwar to only those available for this reciter
+    const availableSurahIds = reciter.moshaf[0].surah_list.split(",");
+    const availableSuwar = suwar.filter((s) => availableSurahIds.includes(s.id.toString()));
+
     // Create a compact keyboard for suwar (3 per row)
     const keyboard = [];
-    for (let i = 0; i < suwar.length; i += 3) {
+    for (let i = 0; i < availableSuwar.length; i += 3) {
       keyboard.push(
-        suwar.slice(i, i + 3).map((s) => ({
+        availableSuwar.slice(i, i + 3).map((s) => ({
           text: s.name,
           callback_data: `surah:${intent}:${reciterId}:${s.id}`,
         })),
@@ -296,9 +300,9 @@ export class QuranBot {
   }
 
   async sendAudio(chatId, lang, reciterId, surahId) {
-    const reciters = await this.quran.getReciters(lang);
+    const reciters = await this.quran.getReciters(lang, reciterId);
     const suwar = await this.quran.getSuwar(lang);
-    const reciter = reciters.find((r) => r.id == reciterId);
+    const reciter = reciters[0]; // Since we filtered by ID
     const surah = suwar.find((s) => s.id == surahId);
 
     if (!reciter || !surah) return;

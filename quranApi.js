@@ -1,6 +1,6 @@
 export class QuranAPI {
   constructor(redis) {
-    this.baseUrl = "https://mp3quran.net/api/";
+    this.baseUrl = "https://mp3quran.net/api/v3";
     this.redis = redis;
     this.cacheTTL = 3600 * 24; // 24 hours
   }
@@ -10,13 +10,16 @@ export class QuranAPI {
     return `https://www.mp3quran.net/api/quran_pages_arabic/1080/${formattedPage}.png`;
   }
 
-  async getReciters(lang = "ar") {
-    const cacheKey = `cache:reciters:${lang}`;
+  async getReciters(lang = "ar", reciterId = null) {
+    const cacheKey = reciterId ? `cache:reciter:${reciterId}:${lang}` : `cache:reciters:${lang}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return cached;
 
     try {
-      const response = await fetch(`${this.baseUrl}/reciters?language=${lang}`);
+      let url = `${this.baseUrl}/reciters?language=${lang}`;
+      if (reciterId) url += `&reciter=${reciterId}`;
+      
+      const response = await fetch(url);
       const data = await response.json();
 
       if (data && data.reciters) {
