@@ -91,4 +91,5 @@ This project is licensed under the MIT License.
 
 ---
 
-**Developed with ❤️ by [Antigravity AI]**
+**Developed with ❤️ by [7assanosama]**
+*(Assisted by Antigravity AI)*
