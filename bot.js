@@ -86,9 +86,9 @@ export class QuranBot {
     if (data.startsWith("surah:")) {
       const [, intent, reciterId, surahId] = data.split(":");
       if (intent === "download") {
-        return this.sendAudio(chatId, lang, reciterId, surahId, true);
+        return this.sendAudio(chatId, lang, reciterId, surahId);
       }
-      return this.sendAudio(chatId, lang, reciterId, surahId, false);
+      return this.sendAudio(chatId, lang, reciterId, surahId);
     }
 
     if (data.startsWith("show_reciters:")) {
@@ -103,7 +103,7 @@ export class QuranBot {
 
     if (data.startsWith("dl_file:")) {
       const [, reciterId, surahId] = data.split(":");
-      return this.sendAudio(chatId, lang, reciterId, surahId, true);
+      return this.sendAudio(chatId, lang, reciterId, surahId);
     }
 
     if (data === "goto_page") {
@@ -252,7 +252,7 @@ export class QuranBot {
     return this.sendMessage(chatId, text);
   }
 
-  async sendAudio(chatId, lang, reciterId, surahId, asDocument = false) {
+  async sendAudio(chatId, lang, reciterId, surahId) {
     const reciters = await this.quran.getReciters(lang);
     const suwar = await this.quran.getSuwar(lang);
     const reciter = reciters.find((r) => r.id == reciterId);
@@ -268,15 +268,6 @@ export class QuranBot {
       .replace("{name}", surah.name)
       .replace("{reciter}", reciter.name);
 
-    if (asDocument) {
-      return this.callTelegram("sendDocument", {
-        chat_id: chatId,
-        document: audioUrl,
-        caption: text,
-        parse_mode: "HTML",
-      });
-    }
-
     return this.callTelegram("sendAudio", {
       chat_id: chatId,
       audio: audioUrl,
@@ -284,16 +275,6 @@ export class QuranBot {
       parse_mode: "HTML",
       title: surah.name,
       performer: reciter.name,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: STRINGS[lang].download,
-              callback_data: `dl_file:${reciterId}:${surahId}`,
-            },
-          ],
-        ],
-      },
     });
   }
 
