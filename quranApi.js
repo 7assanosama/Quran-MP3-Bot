@@ -14,37 +14,36 @@ export class QuranAPI {
 
   async getReciters(lang = "ar", reciterId = null) {
     const memKey = `reciters:${lang}`;
-    if (!reciterId && memoryCache.has(memKey)) {
-      return memoryCache.get(memKey);
-    }
+    let reciters = memoryCache.get(memKey);
 
-    const cacheKey = reciterId
-      ? `cache:reciter:${reciterId}:${lang}`
-      : `cache:reciters:${lang}`;
-    const cached = await this.redis.get(cacheKey);
-    
-    if (cached) {
-      if (!reciterId) memoryCache.set(memKey, cached);
-      return cached;
-    }
-
-    try {
-      let url = `${this.baseUrl}/reciters?language=${lang}`;
-      if (reciterId) url += `&reciter=${reciterId}`;
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data && data.reciters) {
-        // Sort reciters alphabetically by name
-        data.reciters.sort((a, b) => a.name.localeCompare(b.name, lang));
-
-        await this.redis.set(cacheKey, data.reciters, { ex: this.cacheTTL });
-        if (!reciterId) memoryCache.set(memKey, data.reciters);
-        return data.reciters;
+    if (!reciters) {
+      const cacheKey = `cache:reciters:${lang}`;
+      reciters = await this.redis.get(cacheKey);
+      if (reciters) {
+        memoryCache.set(memKey, reciters);
       }
-    } catch (e) {
-      console.error("API Error (getReciters):", e);
+    }
+
+    if (!reciters) {
+      try {
+        const response = await fetch(`${this.baseUrl}/reciters?language=${lang}`);
+        const data = await response.json();
+        if (data && data.reciters) {
+          reciters = data.reciters;
+          reciters.sort((a, b) => a.name.localeCompare(b.name, lang));
+          await this.redis.set(`cache:reciters:${lang}`, reciters, { ex: this.cacheTTL });
+          memoryCache.set(memKey, reciters);
+        }
+      } catch (e) {
+        console.error("API Error (getReciters):", e);
+      }
+    }
+
+    if (reciters) {
+      if (reciterId) {
+        return reciters.filter((r) => r.id == reciterId);
+      }
+      return reciters;
     }
     return [];
   }
