@@ -47,7 +47,7 @@ export class QuranBot {
     }
 
     if (text === BUTTONS.read_quran[lang]) {
-      return this.showQuranPage(chatId, lang, 1);
+      return this.showReadSuwar(chatId, lang);
     }
 
     if (text === BUTTONS.radios[lang]) {
@@ -127,6 +127,20 @@ export class QuranBot {
     if (data.startsWith("page:")) {
       const pageNum = parseInt(data.split(":")[1]);
       return this.showQuranPage(chatId, lang, pageNum, messageId);
+    }
+
+    if (data.startsWith("read_surah:")) {
+      const surahId = data.split(":")[1];
+      const suwar = await this.quran.getSuwar(lang);
+      const surah = suwar.find((s) => s.id == surahId);
+      if (surah) {
+        return this.showQuranPage(chatId, lang, surah.start_page);
+      }
+    }
+
+    if (data.startsWith("show_read_suwar:")) {
+      const page = parseInt(data.split(":")[1] || "0");
+      return this.showReadSuwar(chatId, lang, messageId, page);
     }
 
     if (data.startsWith("dl_file:")) {
@@ -242,6 +256,44 @@ export class QuranBot {
     return this.editMessage(chatId, messageId, text, {
       reply_markup: { inline_keyboard: keyboard },
     });
+  }
+
+  async showReadSuwar(chatId, lang, messageId = null, page = 0) {
+    const suwar = await this.quran.getSuwar(lang);
+    const pageSize = 60;
+    const start = page * pageSize;
+    const end = start + pageSize;
+    const pagedSuwar = suwar.slice(start, end);
+
+    const keyboard = [];
+    for (let i = 0; i < pagedSuwar.length; i += 3) {
+      keyboard.push(
+        pagedSuwar.slice(i, i + 3).map((s) => ({
+          text: s.name,
+          callback_data: `read_surah:${s.id}`,
+        })),
+      );
+    }
+
+    // Pagination buttons
+    const navButtons = [];
+    if (page > 0) {
+      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `show_read_suwar:${page - 1}` });
+    }
+    if (end < suwar.length) {
+      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `show_read_suwar:${page + 1}` });
+    }
+    if (navButtons.length > 0) {
+      keyboard.push(navButtons);
+    }
+
+    const text = STRINGS[lang].choose_surah;
+    const extra = { reply_markup: { inline_keyboard: keyboard } };
+
+    if (messageId) {
+      return this.editMessage(chatId, messageId, text, extra);
+    }
+    return this.sendMessage(chatId, text, extra);
   }
 
   async showQuranPage(chatId, lang, pageNum, messageId = null) {
