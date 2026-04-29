@@ -46,10 +46,6 @@ export class QuranBot {
       return this.showReciters(chatId, lang, null, "listen");
     }
 
-    if (text === BUTTONS.download_quran[lang]) {
-      return this.showReciters(chatId, lang, null, "download");
-    }
-
     if (text === BUTTONS.read_quran[lang]) {
       return this.showQuranPage(chatId, lang, 1);
     }
@@ -125,7 +121,7 @@ export class QuranBot {
   async showReciters(chatId, lang, messageId = null, intent = "listen") {
     const reciters = await this.quran.getReciters(lang);
     const topReciters = reciters.slice(0, 20);
-    
+
     const icon = intent === "download" ? "📥" : "🎧";
     const keyboard = topReciters.map((r) => [
       { text: `${icon} ${r.name}`, callback_data: `reciter:${intent}:${r.id}` },
@@ -144,7 +140,7 @@ export class QuranBot {
     const suwar = await this.quran.getSuwar(lang);
     const reciters = await this.quran.getReciters(lang);
     const reciter = reciters.find((r) => r.id == reciterId);
-    
+
     const icon = intent === "download" ? "📥" : "🎧";
 
     // Create a compact keyboard for suwar (3 per row)
@@ -154,12 +150,14 @@ export class QuranBot {
         suwar.slice(i, i + 3).map((s) => ({
           text: s.name,
           callback_data: `surah:${intent}:${reciterId}:${s.id}`,
-        }))
+        })),
       );
     }
 
     // Add Back button
-    keyboard.push([{ text: BUTTONS.back[lang], callback_data: `show_reciters:${intent}` }]);
+    keyboard.push([
+      { text: BUTTONS.back[lang], callback_data: `show_reciters:${intent}` },
+    ]);
 
     const text = `${icon} <b>${reciter?.name}</b>\n\n${STRINGS[lang].choose_surah}`;
     return this.editMessage(chatId, messageId, text, {
@@ -175,20 +173,31 @@ export class QuranBot {
     const keyboard = [[]];
 
     if (pageNum > 1) {
-      keyboard[0].push({ text: BUTTONS.prev_page[lang], callback_data: `page:${pageNum - 1}` });
+      keyboard[0].push({
+        text: BUTTONS.prev_page[lang],
+        callback_data: `page:${pageNum - 1}`,
+      });
     }
     if (pageNum < 604) {
-      keyboard[0].push({ text: BUTTONS.next_page[lang], callback_data: `page:${pageNum + 1}` });
+      keyboard[0].push({
+        text: BUTTONS.next_page[lang],
+        callback_data: `page:${pageNum + 1}`,
+      });
     }
-    
+
     // Add Go to Page button in a new row
-    keyboard.push([{ text: BUTTONS.goto_page[lang], callback_data: "goto_page" }]);
+    keyboard.push([
+      { text: BUTTONS.goto_page[lang], callback_data: "goto_page" },
+    ]);
 
     const caption = `📖 <b>${STRINGS[lang].page} ${pageNum}</b>`;
-    const extra = { reply_markup: { inline_keyboard: keyboard }, parse_mode: "HTML" };
+    const extra = {
+      reply_markup: { inline_keyboard: keyboard },
+      parse_mode: "HTML",
+    };
 
     if (messageId) {
-      // Telegram editMessageText doesn't support changing media, 
+      // Telegram editMessageText doesn't support changing media,
       // but we can use editMessageMedia or just send a new one.
       // editMessageMedia is better for UX.
       return this.callTelegram("editMessageMedia", {
@@ -198,9 +207,9 @@ export class QuranBot {
           type: "photo",
           media: imageUrl,
           caption: caption,
-          parse_mode: "HTML"
+          parse_mode: "HTML",
         },
-        ...extra
+        ...extra,
       });
     }
 
@@ -208,7 +217,7 @@ export class QuranBot {
       chat_id: chatId,
       photo: imageUrl,
       caption: caption,
-      ...extra
+      ...extra,
     });
   }
 
@@ -216,9 +225,7 @@ export class QuranBot {
     const radios = await this.quran.getRadios(lang);
     const topRadios = radios.slice(0, 15);
 
-    const keyboard = topRadios.map((r) => [
-      { text: r.name, url: r.url },
-    ]);
+    const keyboard = topRadios.map((r) => [{ text: r.name, url: r.url }]);
 
     return this.sendMessage(chatId, STRINGS[lang].choose_radio, {
       reply_markup: { inline_keyboard: keyboard },
@@ -237,7 +244,7 @@ export class QuranBot {
     const diff = now - start;
     const oneDay = 1000 * 60 * 60 * 24;
     const dayOfYear = Math.floor(diff / oneDay);
-    
+
     const index = dayOfYear % hadiths.length;
     const hadith = hadiths[index].hadith;
 
@@ -266,7 +273,7 @@ export class QuranBot {
         chat_id: chatId,
         document: audioUrl,
         caption: text,
-        parse_mode: "HTML"
+        parse_mode: "HTML",
       });
     }
 
@@ -279,7 +286,12 @@ export class QuranBot {
       performer: reciter.name,
       reply_markup: {
         inline_keyboard: [
-          [{ text: STRINGS[lang].download, callback_data: `dl_file:${reciterId}:${surahId}` }],
+          [
+            {
+              text: STRINGS[lang].download,
+              callback_data: `dl_file:${reciterId}:${surahId}`,
+            },
+          ],
         ],
       },
     });
@@ -291,7 +303,9 @@ export class QuranBot {
   }
 
   async answerCallback(callbackQueryId) {
-    return this.callTelegram("answerCallbackQuery", { callback_query_id: callbackQueryId });
+    return this.callTelegram("answerCallbackQuery", {
+      callback_query_id: callbackQueryId,
+    });
   }
 
   async sendResponse(chatId, lang, stringKey) {
@@ -303,7 +317,7 @@ export class QuranBot {
   getMainMenu(lang) {
     return {
       keyboard: [
-        [{ text: BUTTONS.listen_quran[lang] }, { text: BUTTONS.download_quran[lang] }],
+        [{ text: BUTTONS.listen_quran[lang] }],
         [{ text: BUTTONS.read_quran[lang] }, { text: BUTTONS.radios[lang] }],
         [{ text: BUTTONS.today_hadith[lang] }, { text: BUTTONS.lang[lang] }],
       ],
@@ -312,11 +326,22 @@ export class QuranBot {
   }
 
   async sendMessage(chatId, text, extra = {}) {
-    return this.callTelegram("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", ...extra });
+    return this.callTelegram("sendMessage", {
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      ...extra,
+    });
   }
 
   async editMessage(chatId, messageId, text, extra = {}) {
-    return this.callTelegram("editMessageText", { chat_id: chatId, message_id: messageId, text, parse_mode: "HTML", ...extra });
+    return this.callTelegram("editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: "HTML",
+      ...extra,
+    });
   }
 
   async callTelegram(method, body) {
@@ -343,4 +368,3 @@ export class QuranBot {
     } catch (e) {}
   }
 }
-

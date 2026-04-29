@@ -10,11 +10,7 @@ export const BUTTONS = {
   listen_quran: {
     ar: "🎧 استماع",
     en: "🎧 Listen",
-  },
-  download_quran: {
-    ar: "📥 تحميل",
-    en: "📥 Download",
-  },
+  }, 
   radios: {
     ar: "📻 الإذاعات",
     en: "📻 Radio Stations",
