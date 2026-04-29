@@ -92,8 +92,15 @@ export class QuranBot {
     }
 
     if (data.startsWith("show_reciters:")) {
-      const intent = data.split(":")[1];
-      return this.showReciters(chatId, lang, messageId, intent);
+      const parts = data.split(":");
+      const intent = parts[1];
+      const page = parseInt(parts[2] || "0");
+      return this.showReciters(chatId, lang, messageId, intent, page);
+    }
+
+    if (data.startsWith("show_radios:")) {
+      const page = parseInt(data.split(":")[1] || "0");
+      return this.showRadios(chatId, lang, messageId, page);
     }
 
     if (data.startsWith("page:")) {
@@ -118,13 +125,29 @@ export class QuranBot {
     }
   }
 
-  async showReciters(chatId, lang, messageId = null, intent = "listen") {
-    const reciters = await this.quran.getReciters(lang); 
+  async showReciters(chatId, lang, messageId = null, intent = "listen", page = 0) {
+    const reciters = await this.quran.getReciters(lang);
+    const pageSize = 50;
+    const start = page * pageSize;
+    const end = start + pageSize;
+    const pagedReciters = reciters.slice(start, end);
 
     const icon = intent === "download" ? "📥" : "🎧";
-    const keyboard = reciters.map((r) => [
+    const keyboard = pagedReciters.map((r) => [
       { text: `${icon} ${r.name}`, callback_data: `reciter:${intent}:${r.id}` },
     ]);
+
+    // Pagination buttons
+    const navButtons = [];
+    if (page > 0) {
+      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `show_reciters:${intent}:${page - 1}` });
+    }
+    if (end < reciters.length) {
+      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `show_reciters:${intent}:${page + 1}` });
+    }
+    if (navButtons.length > 0) {
+      keyboard.push(navButtons);
+    }
 
     const text = STRINGS[lang].choose_reciter;
     const extra = { reply_markup: { inline_keyboard: keyboard } };
@@ -220,11 +243,32 @@ export class QuranBot {
     });
   }
 
-  async showRadios(chatId, lang) {
+  async showRadios(chatId, lang, messageId = null, page = 0) {
     const radios = await this.quran.getRadios(lang);
-    const topRadios = radios.slice(0, 15);
+    const pageSize = 50;
+    const start = page * pageSize;
+    const end = start + pageSize;
+    const pagedRadios = radios.slice(start, end);
 
-    const keyboard = topRadios.map((r) => [{ text: r.name, url: r.url }]);
+    const keyboard = pagedRadios.map((r) => [{ text: r.name, url: r.url }]);
+
+    // Pagination buttons
+    const navButtons = [];
+    if (page > 0) {
+      navButtons.push({ text: BUTTONS.prev_list[lang], callback_data: `show_radios:${page - 1}` });
+    }
+    if (end < radios.length) {
+      navButtons.push({ text: BUTTONS.next_list[lang], callback_data: `show_radios:${page + 1}` });
+    }
+    if (navButtons.length > 0) {
+      keyboard.push(navButtons);
+    }
+
+    if (messageId) {
+      return this.editMessage(chatId, messageId, STRINGS[lang].choose_radio, {
+        reply_markup: { inline_keyboard: keyboard },
+      });
+    }
 
     return this.sendMessage(chatId, STRINGS[lang].choose_radio, {
       reply_markup: { inline_keyboard: keyboard },

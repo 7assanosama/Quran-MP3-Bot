@@ -35,6 +35,14 @@ export const BUTTONS = {
     ar: "🔢 الذهاب لصفحة",
     en: "🔢 Go to Page",
   },
+  next_list: {
+    ar: "التالي ⬅️",
+    en: "Next ➡️",
+  },
+  prev_list: {
+    ar: "➡️ السابق",
+    en: "⬅️ Previous",
+  }
 };
 
 export const STRINGS = {
