@@ -247,10 +247,19 @@ export class QuranBot {
       .replace("{name}", surah.name)
       .replace("{reciter}", reciter.name);
 
-    return this.sendMessage(chatId, `${text}\n\n🔗 ${audioUrl}`);
-    // Note: In a real bot, you'd use sendAudio, but many Cloudflare Workers 
-    // have limits on file sizes, so sending the link is safer or 
-    // you can try fetch -> send. Here we'll send a link for simplicity/reliability.
+    return this.callTelegram("sendAudio", {
+      chat_id: chatId,
+      audio: audioUrl,
+      caption: text,
+      parse_mode: "HTML",
+      title: surah.name,
+      performer: reciter.name,
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: STRINGS[lang].download, url: audioUrl }],
+        ],
+      },
+    });
   }
 
   // Helper Methods
