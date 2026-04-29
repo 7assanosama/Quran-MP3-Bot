@@ -71,8 +71,10 @@ export class UIManager {
   }
 
   async showSuwar(chatId, lang, reciterId, messageId, intent = "listen", page = 0, mIndex = -1) {
-    const suwar = await this.bot.quran.getSuwar(lang);
-    const reciters = await this.bot.quran.getReciters(lang, reciterId);
+    const [suwar, reciters] = await Promise.all([
+      this.bot.quran.getSuwar(lang),
+      this.bot.quran.getReciters(lang, reciterId)
+    ]);
     const reciter = reciters[0];
 
     if (!reciter || !reciter.moshaf) {

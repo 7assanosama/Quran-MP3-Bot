@@ -45,7 +45,17 @@ export class QuranAPI {
         const response = await this.fetchWithTimeout(`${this.baseUrl}/reciters?language=${lang}`);
         const data = await response.json();
         if (data && data.reciters) {
-          reciters = data.reciters;
+          // Slim down reciters to save memory
+          reciters = data.reciters.map(r => ({
+            id: r.id,
+            name: r.name,
+            moshaf: r.moshaf.map(m => ({
+              id: m.id,
+              name: m.name,
+              server: m.server,
+              surah_list: m.surah_list
+            }))
+          }));
           reciters.sort((a, b) => a.name.localeCompare(b.name, lang));
           await this.redis.set(`cache:reciters:${lang}`, reciters, { ex: this.cacheTTL });
           memoryCache.set(memKey, reciters);
