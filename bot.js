@@ -105,6 +105,11 @@ export class QuranBot {
       return this.showQuranPage(chatId, lang, pageNum, messageId);
     }
 
+    if (data.startsWith("dl_file:")) {
+      const [, reciterId, surahId] = data.split(":");
+      return this.sendAudio(chatId, lang, reciterId, surahId, true);
+    }
+
     if (data === "goto_page") {
       return this.sendMessage(chatId, STRINGS[lang].enter_page);
     }
@@ -274,7 +279,7 @@ export class QuranBot {
       performer: reciter.name,
       reply_markup: {
         inline_keyboard: [
-          [{ text: STRINGS[lang].download, url: audioUrl }],
+          [{ text: STRINGS[lang].download, callback_data: `dl_file:${reciterId}:${surahId}` }],
         ],
       },
     });
