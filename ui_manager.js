@@ -114,23 +114,22 @@ export class UIManager {
 
     // Create a compact keyboard for suwar (3 per row)
     const keyboard = [];
+    const surahToMoshaf = new Map();
+    if (mIndex === -1) {
+      reciter.moshaf.forEach((m, idx) => {
+        m.surah_list.split(/[,\s]+/).forEach((sId) => {
+          const id = sId.trim();
+          if (id && !surahToMoshaf.has(id)) {
+            surahToMoshaf.set(id, idx);
+          }
+        });
+      });
+    }
+
     for (let i = 0; i < pagedSuwar.length; i += 3) {
       keyboard.push(
         pagedSuwar.slice(i, i + 3).map((s) => {
-          let actualMIndex = mIndex;
-          if (mIndex === -1) {
-            // Recalculate if in fallback mode
-            const surahToMoshaf = new Map();
-            reciter.moshaf.forEach((m, idx) => {
-              m.surah_list.split(/[,\s]+/).forEach((sId) => {
-                const id = sId.trim();
-                if (id && !surahToMoshaf.has(id)) {
-                  surahToMoshaf.set(id, idx);
-                }
-              });
-            });
-            actualMIndex = surahToMoshaf.get(s.id.toString());
-          }
+          const actualMIndex = mIndex === -1 ? surahToMoshaf.get(s.id.toString()) : mIndex;
           return {
             text: s.name,
             callback_data: `surah:${intent}:${reciterId}:${s.id}:${actualMIndex}`,
