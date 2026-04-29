@@ -77,6 +77,7 @@ export class QuranBot {
 
     // Answer callback to remove loading state
     await this.answerCallback(query.id);
+    await this.sendAction(chatId, "typing");
 
     if (data.startsWith("reciter:")) {
       const parts = data.split(":");
@@ -198,14 +199,17 @@ export class QuranBot {
     const reciters = await this.quran.getReciters(lang, reciterId);
     const reciter = reciters[0];
 
-    if (!reciter) return;
+    if (!reciter || !reciter.moshaf) {
+      return this.sendResponse(chatId, lang, "error");
+    }
 
     const icon = intent === "download" ? "📥" : "🎧";
 
     // Build a map of surahId -> moshafIndex to handle reciters with multiple collections
     const surahToMoshaf = new Map();
     reciter.moshaf.forEach((m, mIndex) => {
-      m.surah_list.split(",").forEach((sId) => {
+      // Use regex to split by comma and/or spaces
+      m.surah_list.split(/[,\s]+/).forEach((sId) => {
         const id = sId.trim();
         if (id && !surahToMoshaf.has(id)) {
           surahToMoshaf.set(id, mIndex);
@@ -410,7 +414,9 @@ export class QuranBot {
     const reciter = reciters[0]; // Since we filtered by ID
     const surah = suwar.find((s) => s.id == surahId);
 
-    if (!reciter || !surah || !reciter.moshaf[mIndex]) return;
+    if (!reciter || !surah || !reciter.moshaf || !reciter.moshaf[mIndex]) {
+      return this.sendResponse(chatId, lang, "error");
+    }
 
     const server = reciter.moshaf[mIndex].server;
     const formattedSurah = surahId.toString().padStart(3, "0");
