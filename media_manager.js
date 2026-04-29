@@ -27,6 +27,17 @@ export class MediaManager {
     const server = reciter.moshaf[mIndex].server;
     const formattedSurah = surahId.toString().padStart(3, "0");
     const audioUrl = `${server}${formattedSurah}.mp3`;
+
+    // Check file size proactively (Telegram limit is 20MB for URL-based files)
+    let isLarge = false;
+    try {
+      const headResponse = await fetch(audioUrl, { method: "HEAD" });
+      const size = parseInt(headResponse.headers.get("content-length") || "0");
+      if (size > 20 * 1024 * 1024) isLarge = true;
+    } catch (e) {
+      console.error("Size check error:", e);
+    }
+
     const text = STRINGS[lang].playing
       .replace("{name}", surah.name)
       .replace("{reciter}", reciter.name);
@@ -34,6 +45,13 @@ export class MediaManager {
     const keyboard = [
       [{ text: BUTTONS.read_surah[lang], callback_data: `page:${surah.start_page}` }],
     ];
+
+    if (isLarge) {
+      const fallbackText = `⚠️ <b>${surah.name} - ${reciter.name}</b>\n\n${STRINGS[lang].file_too_large}\n\n🔗 <a href="${audioUrl}">${STRINGS[lang].direct_link}</a>`;
+      return this.bot.sendMessage(chatId, fallbackText, {
+        reply_markup: { inline_keyboard: keyboard },
+      });
+    }
 
     const method = intent === "download" ? "sendDocument" : "sendAudio";
     const mediaParam = intent === "download" ? "document" : "audio";
@@ -54,14 +72,11 @@ export class MediaManager {
     try {
       return await this.bot.callTelegram(method, params);
     } catch (e) {
-      if (e.message.includes("failed to get HTTP content") || e.message.includes("wrong file identifier")) {
-        // Fallback for large files (>20MB) or other URL issues
-        const fallbackText = `⚠️ <b>${surah.name} - ${reciter.name}</b>\n\n${STRINGS[lang].file_too_large || "الملف كبير جداً على تليجرام، يمكنك الاستماع إليه مباشرة من هنا:"}\n\n🔗 <a href="${audioUrl}">${STRINGS[lang].direct_link || "رابط مباشر للملف"}</a>`;
-        return this.bot.sendMessage(chatId, fallbackText, {
-          reply_markup: { inline_keyboard: keyboard },
-        });
-      }
-      throw e; // Re-throw if it's another type of error
+      // Final fallback if size check missed it or other URL issues
+      const fallbackText = `⚠️ <b>${surah.name} - ${reciter.name}</b>\n\n${STRINGS[lang].file_too_large}\n\n🔗 <a href="${audioUrl}">${STRINGS[lang].direct_link}</a>`;
+      return this.bot.sendMessage(chatId, fallbackText, {
+        reply_markup: { inline_keyboard: keyboard },
+      });
     }
   }
 }
