@@ -7,80 +7,185 @@ export class QuranBot {
     this.env = env;
     this.token = env.TELEGRAM_BOT_TOKEN;
     this.api = `https://api.telegram.org/bot${this.token}`;
-
-    // Initialize Upstash Redis client
     this.redis = new Redis({
       url: env.UPSTASH_REDIS_REST_URL,
       token: env.UPSTASH_REDIS_REST_TOKEN,
     });
-
-    // Initialize Quran API controller
     this.quran = new QuranAPI(this.redis);
   }
 
-  async handleUpdate(message) {
+  async handleUpdate(update) {
+    if (update.message) {
+      return this.handleMessage(update.message);
+    } else if (update.callback_query) {
+      return this.handleCallback(update.callback_query);
+    }
+  }
+
+  async handleMessage(message) {
     const chatId = message.chat.id;
     const text = message.text?.trim();
+    if (!text) return;
 
-    // Show "typing..." status
     await this.sendAction(chatId, "typing");
-
     const lang = await this.getLang(chatId);
 
-    // Handle language switching
-    if (text === "English 🌐" || text === "en") {
-      await this.setLang(chatId, "en");
-      return this.sendResponse(chatId, "en", "lang_set");
+    // Language handling
+    if (text === BUTTONS.lang[lang] || text === "en" || text === "ar") {
+      const newLang = lang === "ar" ? "en" : "ar";
+      await this.setLang(chatId, newLang);
+      return this.sendResponse(chatId, newLang, "lang_set");
     }
 
-    if (text === "العربية 🌐" || text === "ar") {
-      await this.setLang(chatId, "ar");
-      return this.sendResponse(chatId, "ar", "lang_set");
-    }
-
-    if (text === BUTTONS.radios[lang]) {
-      await this.sendResponse(chatId, lang, this.quran.getRadios(lang));
-    }
-
-    // Default response for known commands or main menu
+    // Commands
     if (text === "/start") {
       return this.sendResponse(chatId, lang, "welcome");
     }
 
-    // Handle unknown text
-    if (text) {
-      return this.sendResponse(chatId, lang, "unknown");
+    if (text === BUTTONS.listen_quran[lang]) {
+      return this.showReciters(chatId, lang);
     }
 
-    return this.sendResponse(chatId, lang, "welcome");
+    if (text === BUTTONS.read_quran[lang]) {
+      return this.sendMessage(chatId, STRINGS[lang].read_text);
+    }
+
+    if (text === BUTTONS.radios[lang]) {
+      return this.showRadios(chatId, lang);
+    }
+
+    return this.sendResponse(chatId, lang, "unknown");
   }
 
+  async handleCallback(query) {
+    const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
+    const data = query.data;
+    const lang = await this.getLang(chatId);
+
+    // Answer callback to remove loading state
+    await this.answerCallback(query.id);
+
+    if (data.startsWith("reciter:")) {
+      const reciterId = data.split(":")[1];
+      return this.showSuwar(chatId, lang, reciterId, messageId);
+    }
+
+    if (data.startsWith("surah:")) {
+      const [, reciterId, surahId] = data.split(":");
+      return this.sendAudio(chatId, lang, reciterId, surahId);
+    }
+
+    if (data === "show_reciters") {
+      return this.showReciters(chatId, lang, messageId);
+    }
+
+    if (data === "main_menu") {
+      const text = STRINGS[lang].welcome;
+      return this.editMessage(chatId, messageId, text, {
+        reply_markup: { inline_keyboard: [] }, // Or hide it
+      });
+    }
+  }
+
+  async showReciters(chatId, lang, messageId = null) {
+    const reciters = await this.quran.getReciters(lang);
+    const topReciters = reciters.slice(0, 20);
+
+    const keyboard = topReciters.map((r) => [
+      { text: r.name, callback_data: `reciter:${r.id}` },
+    ]);
+
+    const text = STRINGS[lang].choose_reciter;
+    const extra = { reply_markup: { inline_keyboard: keyboard } };
+
+    if (messageId) {
+      return this.editMessage(chatId, messageId, text, extra);
+    }
+    return this.sendMessage(chatId, text, extra);
+  }
+
+  async showSuwar(chatId, lang, reciterId, messageId) {
+    const suwar = await this.quran.getSuwar(lang);
+    const reciters = await this.quran.getReciters(lang);
+    const reciter = reciters.find((r) => r.id == reciterId);
+
+    // Create a compact keyboard for suwar (3 per row)
+    const keyboard = [];
+    for (let i = 0; i < suwar.length; i += 3) {
+      keyboard.push(
+        suwar.slice(i, i + 3).map((s) => ({
+          text: s.name,
+          callback_data: `surah:${reciterId}:${s.id}`,
+        }))
+      );
+    }
+
+    // Add Back button
+    keyboard.push([{ text: BUTTONS.back[lang], callback_data: "show_reciters" }]);
+
+    const text = `🎙️ <b>${reciter?.name}</b>\n\n${STRINGS[lang].choose_surah}`;
+    return this.editMessage(chatId, messageId, text, {
+      reply_markup: { inline_keyboard: keyboard },
+    });
+  }
+
+  async showRadios(chatId, lang) {
+    const radios = await this.quran.getRadios(lang);
+    const topRadios = radios.slice(0, 15);
+
+    const keyboard = topRadios.map((r) => [
+      { text: r.name, url: r.url },
+    ]);
+
+    return this.sendMessage(chatId, STRINGS[lang].choose_radio, {
+      reply_markup: { inline_keyboard: keyboard },
+    });
+  }
+
+  async sendAudio(chatId, lang, reciterId, surahId) {
+    const reciters = await this.quran.getReciters(lang);
+    const suwar = await this.quran.getSuwar(lang);
+    const reciter = reciters.find((r) => r.id == reciterId);
+    const surah = suwar.find((s) => s.id == surahId);
+
+    if (!reciter || !surah) return;
+
+    // Construct Server URL
+    // The API usually gives a server URL in the reciter object
+    const server = reciter.moshaf[0].server;
+    const formattedSurah = surahId.toString().padStart(3, "0");
+    const audioUrl = `${server}${formattedSurah}.mp3`;
+
+    const text = STRINGS[lang].playing
+      .replace("{name}", surah.name)
+      .replace("{reciter}", reciter.name);
+
+    return this.sendMessage(chatId, `${text}\n\n🔗 ${audioUrl}`);
+    // Note: In a real bot, you'd use sendAudio, but many Cloudflare Workers 
+    // have limits on file sizes, so sending the link is safer or 
+    // you can try fetch -> send. Here we'll send a link for simplicity/reliability.
+  }
+
+  // Helper Methods
   async sendAction(chatId, action = "typing") {
-    const url = `${this.api}/sendChatAction`;
-    return fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        action: action,
-      }),
-    }).catch((e) => console.error("Error sending action:", e));
+    return this.callTelegram("sendChatAction", { chat_id: chatId, action });
+  }
+
+  async answerCallback(callbackQueryId) {
+    return this.callTelegram("answerCallbackQuery", { callback_query_id: callbackQueryId });
   }
 
   async sendResponse(chatId, lang, stringKey) {
     const text = STRINGS[lang][stringKey] || STRINGS[lang].welcome;
     const keyboard = this.getMainMenu(lang);
-
     return this.sendMessage(chatId, text, { reply_markup: keyboard });
   }
 
   getMainMenu(lang) {
     return {
       keyboard: [
-        [
-          { text: BUTTONS.listen_quran[lang] },
-          { text: BUTTONS.read_quran[lang] },
-        ],
+        [{ text: BUTTONS.listen_quran[lang] }, { text: BUTTONS.read_quran[lang] }],
         [{ text: BUTTONS.lang[lang] }, { text: BUTTONS.radios[lang] }],
       ],
       resize_keyboard: true,
@@ -88,23 +193,20 @@ export class QuranBot {
   }
 
   async sendMessage(chatId, text, extra = {}) {
-    const url = `${this.api}/sendMessage`;
+    return this.callTelegram("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", ...extra });
+  }
+
+  async editMessage(chatId, messageId, text, extra = {}) {
+    return this.callTelegram("editMessageText", { chat_id: chatId, message_id: messageId, text, parse_mode: "HTML", ...extra });
+  }
+
+  async callTelegram(method, body) {
+    const url = `${this.api}/${method}`;
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: "HTML",
-        ...extra,
-      }),
+      body: JSON.stringify(body),
     });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error("Telegram API Error:", errorData);
-    }
-
     return response.json();
   }
 
@@ -112,7 +214,6 @@ export class QuranBot {
     try {
       return (await this.redis.get(`user:${chatId}:lang`)) || "ar";
     } catch (e) {
-      console.error("Redis Error (getLang):", e);
       return "ar";
     }
   }
@@ -120,8 +221,7 @@ export class QuranBot {
   async setLang(chatId, lang) {
     try {
       await this.redis.set(`user:${chatId}:lang`, lang);
-    } catch (e) {
-      console.error("Redis Error (setLang):", e);
-    }
+    } catch (e) {}
   }
 }
+

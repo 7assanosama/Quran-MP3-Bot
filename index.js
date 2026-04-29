@@ -8,10 +8,8 @@ export default {
 
     try {
       const update = await request.json();
-      if (!update.message) return new Response("ok");
-
       const bot = new QuranBot(env);
-      await bot.handleUpdate(update.message);
+      await bot.handleUpdate(update);
 
       return new Response("ok");
     } catch (error) {
