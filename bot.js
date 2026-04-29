@@ -70,10 +70,11 @@ export class QuranBot {
   }
 
   async handleCallback(query) {
-    const chatId = query.message.chat.id;
-    const messageId = query.message.message_id;
-    const data = query.data;
-    const lang = await this.getLang(chatId);
+    try {
+      const chatId = query.message.chat.id;
+      const messageId = query.message.message_id;
+      const data = query.data;
+      const lang = await this.getLang(chatId);
 
     // Answer callback to remove loading state
     await this.answerCallback(query.id);
@@ -153,11 +154,15 @@ export class QuranBot {
       return this.sendMessage(chatId, STRINGS[lang].enter_page);
     }
 
-    if (data === "main_menu") {
-      const text = STRINGS[lang].welcome;
-      return this.editMessage(chatId, messageId, text, {
-        reply_markup: { inline_keyboard: [] }, // Or hide it
-      });
+      if (data === "main_menu") {
+        const text = STRINGS[lang].welcome;
+        return this.editMessage(chatId, messageId, text, {
+          reply_markup: { inline_keyboard: [] }, // Or hide it
+        });
+      }
+    } catch (e) {
+      console.error("Callback Error:", e);
+      return this.sendMessage(query.message.chat.id, `❌ Bot Error: ${e.message}`);
     }
   }
 
@@ -199,8 +204,11 @@ export class QuranBot {
     const reciters = await this.quran.getReciters(lang, reciterId);
     const reciter = reciters[0];
 
-    if (!reciter || !reciter.moshaf) {
-      return this.sendResponse(chatId, lang, "error");
+    if (!reciter) {
+      return this.sendMessage(chatId, `❌ Error: Reciter ID ${reciterId} not found.`);
+    }
+    if (!reciter.moshaf) {
+      return this.sendMessage(chatId, `❌ Error: No moshaf data found for reciter ${reciter.name}.`);
     }
 
     const icon = intent === "download" ? "📥" : "🎧";
@@ -414,8 +422,17 @@ export class QuranBot {
     const reciter = reciters[0]; // Since we filtered by ID
     const surah = suwar.find((s) => s.id == surahId);
 
-    if (!reciter || !surah || !reciter.moshaf || !reciter.moshaf[mIndex]) {
-      return this.sendResponse(chatId, lang, "error");
+    if (!reciter) {
+      return this.sendMessage(chatId, `❌ Error: Reciter ID ${reciterId} not found.`);
+    }
+    if (!suwar || suwar.length === 0) {
+      return this.sendMessage(chatId, `❌ Error: Could not load surah list.`);
+    }
+    if (!surah) {
+      return this.sendMessage(chatId, `❌ Error: Surah ID ${surahId} not found.`);
+    }
+    if (!reciter.moshaf || !reciter.moshaf[mIndex]) {
+      return this.sendMessage(chatId, `❌ Error: Collection index ${mIndex} not found for ${reciter.name}.`);
     }
 
     const server = reciter.moshaf[mIndex].server;
