@@ -115,7 +115,7 @@ export class QuranBot {
 
       if (data.startsWith("moshaf_page:")) {
         const parts = data.split(":");
-        if (parts.length === 6) {
+        if (parts.length === 5) {
           const [, intent, reciterId, mIndex, page] = parts;
           return this.ui.showSuwar(chatId, lang, reciterId, messageId, intent, parseInt(page), parseInt(mIndex));
         }
